@@ -1,0 +1,8 @@
+{application, entrepot,
+  [{description, "entrepot"},
+  {vsn, "@version@"},
+  {modules, [@modules@]},
+  {registered, [entrepot_srv,entrepot_sup]},
+  {applications, [kernel, stdlib, mnesia, vertebra]},
+  {env, [{config_file, "@vertebra_conf@/entrepot.cfg"}]},
+  {mod, {entrepot_app, []}}]}.

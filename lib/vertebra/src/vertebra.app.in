@@ -1,0 +1,8 @@
+{application, vertebra,
+ [{description, "Erlang Vertebra Agent"},
+  {vsn, "@version@"},
+  {modules, [@modules@]},
+  {registered, []},
+  {applications, [kernel, stdlib]},
+  {env, []},
+  {mod, {vertebra, []}}]}.

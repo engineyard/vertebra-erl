@@ -1,0 +1,77 @@
+export VERSION = 0.4.1
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+libdir = @libdir@
+sbindir = @sbindir@
+sysconfdir = @sysconfdir@
+
+export ERL = @ERL@
+export ERL_LIBS = $(abspath lib)
+export INSTALL = @INSTALL@
+export VERTEBRA_CONF = ${sysconfdir}/vertebra
+export VERTEBRA_LIB = ${libdir}/vertebra/lib
+
+cwd = $(shell pwd)
+libs = vertebra $(filter-out vertebra, $(shell ls lib))
+agents = entrepot herault cavalcade
+for-lib = for lib in $(libs); do cd lib/$$lib; $(1); cd $(cwd); done
+
+all: all-libs bin/vertebractl conf/vertebractl.conf
+
+all-libs:
+	$(call for-lib, make)
+
+clean: clean-libs clean-top
+
+clean-top:
+	rm -f bin/vertebractl
+	rm -f conf/vertebractl.conf
+
+clean-libs:
+	$(call for-lib, make clean)
+
+distclean: distclean-libs clean-top distclean-top
+
+distclean-top:
+	rm -rf Makefile include.mk src.include.mk config.* autom4te.cache
+
+distclean-libs:
+	$(call for-lib, make distclean)
+
+initdb:
+	for agent in $(agents); do echo Cleaning $$agent; bin/vertebractl $$agent initdb; done
+
+tests:
+	$(call for-lib, make tests)
+
+install: install-libs install-top install-config
+
+install-libs:
+	$(call for-lib, make install)
+
+install-top:
+	mkdir -p $(sbindir)
+	$(INSTALL) -m 0755 bin/vertebractl $(sbindir)
+
+install-config:
+	mkdir -p $(VERTEBRA_CONF)
+	$(INSTALL) -m 0644 conf/vertebractl.conf $(VERTEBRA_CONF)
+	$(call for-lib, make install-config)
+
+test:
+	$(call for-lib, make test)
+
+uninstall:
+	$(call for-lib, make uninstall)
+
+conf/vertebractl.conf: conf/vertebractl.conf.in
+	sed -e 's|[@]vertebra_lib[@]|$(VERTEBRA_LIB)|g' \
+	    < conf/vertebractl.conf.in > conf/vertebractl.conf
+
+bin/vertebractl: src/vertebractl.in
+	mkdir -p bin
+	sed -e 's|[@]vertebra_conf[@]|$(VERTEBRA_CONF)|g' \
+		-e 's|[@]erl[@]|$(ERL)|g' \
+		< src/vertebractl.in > bin/vertebractl
+	chmod 0755 bin/vertebractl

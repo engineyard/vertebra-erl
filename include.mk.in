@@ -1,0 +1,60 @@
+ERLC = @ERLC@
+ERLC_FLAGS = -o ./ebin
+SED = @SED@
+
+TARGET = $(VERTEBRA_LIB)/$(APP)-$(VERSION)
+
+APP_SOURCE = $(wildcard src/*.app.in)
+APP_FILES = $(APP_SOURCE:src/%.app.in=ebin/%.app)
+
+all: compile-native compile-src $(APP_FILES)
+
+clean-hook:
+
+clean: clean-hook
+	rm -f ebin/*.beam
+	rm -f ebin/*.app
+	rm -f *.dump
+
+compile-native:
+
+compile-src:
+	cd src && make
+
+compile-tests:
+	cd tests && make
+
+distclean: clean
+
+install-$(APP):
+
+install: install-$(APP)
+	$(INSTALL) -d $(TARGET)/ebin
+	$(INSTALL) $(wildcard ebin/*) $(TARGET)/ebin
+	$(INSTALL) -d $(TARGET)/src
+	$(INSTALL) $(wildcard src/*) $(TARGET)/src
+
+install-config:
+
+run-tests:
+	@ echo
+	@ echo Running tests...
+	$(ERL) $(TEST_OPTS) \
+		-pa $(VERTEBRA)/ebin -pa ./ebin -eval "test_suite:test()" -s init stop \
+		-noshell
+
+test tests: compile-src compile-tests run-tests
+
+uninstall-$(APP):
+
+uninstall: uninstall-$(APP)
+	rm -rf $(TARGET)
+
+MODULE_FILES = $(wildcard src/*.erl)
+MODULES = $(MODULE_FILES:src/%.erl=%,)
+ebin/$(APP).app: $(APP_TEMPLATE) $(MODULE_FILES)
+	@ echo Regenerate: $@
+	@ $(SED) -e 's/@modules@/$(MODULES)/g' -e 's/,]}/]}/' \
+             -e 's/@version@/$(VERSION)/g' \
+		     -e 's|@vertebra_conf@|$(VERTEBRA_CONF)|g' \
+		     < $(@:ebin/%=src/%.in) > $@

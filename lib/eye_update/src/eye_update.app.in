@@ -1,0 +1,8 @@
+{application, eye_update,
+  [{description, "eye_update"},
+  {vsn, "@version@"},
+  {modules, [@modules@]},
+  {registered, [eye_sup,eye_updater]},
+  {applications, [kernel, sasl, stdlib]},
+  {env, [{config_file, "@vertebra_conf@/eye_update.cfg"}]},
+  {mod, {eye_update_app, []}}]}.

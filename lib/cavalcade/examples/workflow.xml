@@ -1,0 +1,21 @@
+<workflow name="list_gems" start="find_slices">
+  <state name="find_slices">
+    <op type="/security/discover">
+      <string name="target">herault@localhost/herault</string>
+      <res name="/list">/list</res>
+      <output>
+	<all name="agents" />
+      </output>
+    </op>
+    <transition type="default">get_gems</transition>
+  </state>
+  <state name="get_gems">
+    <op type="/list">
+      <import name="agents" type="target" />
+      <output>
+	<all name="results" />
+      </output>
+    </op>
+    <transition type="end" />
+  </state>
+</workflow>

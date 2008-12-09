@@ -1,0 +1,27 @@
+== Quickstart
+
+To build all of the erlang components just type:
+
+  $ make
+
+To install some default configuration (needed for the integration tests):
+
+  $ make install-config
+
+To build a single project (e.g. herault):
+
+  $ make libs=herault
+
+To launch an application (e.g. herault):
+
+  $ bin/vertebractl herault start
+
+To launch an application in debug mode (e.g. herault):
+
+  $ bin/vertebractl herault run
+
+== Installation
+
+All you should have to do to install is:
+
+  $ make && make install && make install-config
