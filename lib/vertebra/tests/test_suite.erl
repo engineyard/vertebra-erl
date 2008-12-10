@@ -23,4 +23,5 @@ all_test_() ->
   [{module, test_xml_util},
    {module, test_uuid},
    {module, test_ops_builder},
-   {module, test_vertebra_xmpp}].
+   {module, test_vertebra_xmpp},
+   {module, test_worker_tracker}].
