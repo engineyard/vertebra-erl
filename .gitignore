@@ -1,0 +1,7 @@
+configure
+config.*
+include.mk
+src.include.mk
+bin/vertebractl
+autom4te*
+conf
