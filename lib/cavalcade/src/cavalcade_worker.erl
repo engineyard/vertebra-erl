@@ -173,7 +173,7 @@ handle_request(_Ignored, State) ->
 
 is_authorized(From, Action) ->
   Config = cavalcade_srv:get_config(),
-  case authz:verify(Config, proplists:get_value(herault, Config), From, [Action]) of
+  case vertebra_auth:verify(Config, proplists:get_value(herault, Config), From, [Action]) of
     {ok, Resp} ->
       Resp;
     Error ->

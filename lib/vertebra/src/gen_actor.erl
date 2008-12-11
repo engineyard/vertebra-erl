@@ -19,9 +19,12 @@
 
 -behaviour(gen_server).
 
+-define(DEFAULT_TTL, 3600).
+
 %% API
 -export([start_link/3, get_connection_info/1, send_fatal_error/4]).
 -export([send_error/4, send_result/4, end_result/3]).
+-export([add_resources/2, remove_resources/2, stop/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -34,7 +37,8 @@
         {xmpp,
          xmpp_config,
          cb_module,
-         tracker_pid}).
+         tracker_pid,
+         advertiser}).
 
 %%====================================================================
 %% API
@@ -80,10 +84,34 @@ stop(ServerPid) ->
 init([Config, CallbackModule]) ->
   {ok, Cn} = natter_connection:start_link(Config),
   natter_connection:register_default_exchange(Cn, self()),
-  {ok, #state{xmpp=Cn, cb_module=CallbackModule, xmpp_config=Config}}.
+  State = case proplists:get_value(herault, Config) of
+            undefined ->
+              #state{xmpp=Cn, cb_module=CallbackModule, xmpp_config=Config};
+            _ ->
+              case CallbackModule:advertised_resources() of
+                [] ->
+                  {ok, P} = gen_actor_advertiser:start_link(Config, [], ?DEFAULT_TTL),
+                  #state{xmpp=Cn, cb_module=CallbackModule, xmpp_config=Config, advertiser=P};
+                {} ->
+                  {ok, P} = gen_actor_advertiser:start_link(Config, [], ?DEFAULT_TTL),
+                  #state{xmpp=Cn, cb_module=CallbackModule, xmpp_config=Config, advertiser=P};
+                Resources ->
+                  {ok, P} = gen_actor_advertiser:start_link(Config, Resources, ?DEFAULT_TTL),
+                  #state{xmpp=Cn, cb_module=CallbackModule, xmpp_config=Config, advertiser=P}
+              end
+          end,
+  {ok, State}.
 
 handle_call(get_xmpp_connection_info, _From, State) ->
   {reply, State#state.xmpp, State};
+
+handle_call({remove_resources, Resources}, _From, State) ->
+  gen_actor_advertiser:remove_resources(State#state.advertiser, Resources),
+  {reply, ok, State};
+
+handle_call({add_resources, Resources}, _From, State) ->
+  gen_actor_advertiser:add_resources(State#state.advertiser, Resources),
+  {reply, ok, State};
 
 handle_call(_Msg, _From, State) ->
   {reply, ignored, State}.
@@ -94,6 +122,9 @@ handle_call(_Msg, _From, State) ->
 %%                                      {stop, Reason, State}
 %% Description: Handling cast messages
 %%--------------------------------------------------------------------
+handle_cast(stop, State) ->
+  {stop, shutdown, State};
+
 handle_cast(_Msg, State) ->
   {noreply, State}.
 
