@@ -46,7 +46,7 @@ verify(Config, HeraultJid, RequestorJid, Resources) ->
   Login = convert_login(Config),
   Token = proplists:get_value(resource, Login),
   Inputs = [build_requestor(RequestorJid) | vertebra_xmpp:build_resources(Resources)],
-  case vertebra_command:run(Login, "/security/authorize", Inputs, Token, HeraultJid) of
+  case vertebra_cmd:run(Login, "/security/authorize", Inputs, Token, HeraultJid) of
     {ok, _From, Data} ->
       case Data of
         [{string, [{"name", "response"}], <<"notauthorized">>}] ->

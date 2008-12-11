@@ -25,7 +25,7 @@ find(Config, HeraultJid, Resources) ->
   Login = convert_login(Config),
   Token = proplists:get_value(resource, Login),
   Inputs = vertebra_xmpp:build_resources(Resources),
-  case vertebra_command:run(Login, "/security/discover", Inputs, Token, HeraultJid) of
+  case vertebra_cmd:run(Login, "/security/discover", Inputs, Token, HeraultJid) of
     {ok, _From, Data} ->
       {ok, aggregate_results(Data)};
     Error ->

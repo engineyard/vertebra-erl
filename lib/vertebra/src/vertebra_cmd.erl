@@ -1,3 +1,20 @@
+% Copyright 2008, Engine Yard, Inc.
+%
+% This file is part of Vertebra.
+%
+% Vertebra is free software: you can redistribute it and/or modify it under the
+% terms of the GNU Lesser General Public License as published by the Free
+% Software Foundation, either version 3 of the License, or (at your option) any
+% later version.
+%
+% Vertebra is distributed in the hope that it will be useful, but WITHOUT ANY
+% WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+% A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for more
+% details.
+%
+% You should have received a copy of the GNU Lesser General Public License
+% along with Vertebra.  If not, see <http://www.gnu.org/licenses/>.
+
 -module(vertebra_cmd).
 
 -behaviour(gen_server).
@@ -90,7 +107,7 @@ handle_cast({execute, Client}, State) ->
   Op = ops_builder:generic_op({State#state.op,
                                string:join(State#state.start_token, ":"),
                                State#state.inputs}),
-  vertebra_xmpp_new:send_set(State#state.connection, ?ERROR_TRACKING_DISABLED, State#state.target, Op),
+  vertebra_xmpp:send_set(State#state.connection, ?ERROR_TRACKING_DISABLED, State#state.target, Op),
   {noreply, State#state{client=Client}};
 
 handle_cast(_Msg, State) ->
@@ -98,7 +115,7 @@ handle_cast(_Msg, State) ->
 
 handle_info({packet, {xmlelement, "iq", Attrs, [{xmlelement, "final", _, _}=Final]}}, State) ->
   From = proplists:get_value("from", Attrs),
-  vertebra_xmpp_new:send_result(State#state.connection,
+  vertebra_xmpp:send_result(State#state.connection,
                                 ?ERROR_TRACKING_DISABLED,
                                 proplists:get_value("id", Attrs),
                                 From,
@@ -108,7 +125,7 @@ handle_info({packet, {xmlelement, "iq", Attrs, [{xmlelement, "final", _, _}=Fina
   {stop, normal, State};
 
 handle_info({packet, {xmlelement, "iq", Attrs, [{xmlelement, "result", _, Results}=Result]}}, State) ->
-    vertebra_xmpp_new:send_result(State#state.connection,
+    vertebra_xmpp:send_result(State#state.connection,
                                 ?ERROR_TRACKING_DISABLED,
                                 proplists:get_value("id", Attrs),
                                 proplists:get_value("from", Attrs),
@@ -116,7 +133,7 @@ handle_info({packet, {xmlelement, "iq", Attrs, [{xmlelement, "result", _, Result
   {noreply, State#state{results=[Results|State#state.results]}};
 
 handle_info({packet, {xmlelement, "iq", Attrs, [{xmlelement, "ack", _, _}=Ack]}}, State) ->
-  vertebra_xmpp_new:send_result(State#state.connection,
+  vertebra_xmpp:send_result(State#state.connection,
                                 ?ERROR_TRACKING_DISABLED,
                                 proplists:get_value("id", Attrs),
                                 proplists:get_value("from", Attrs),

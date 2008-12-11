@@ -54,19 +54,19 @@ get_connection_info(ServerPid) ->
 
 send_fatal_error(ServerPid, To, Token, Error) ->
   XMPP= get_connection_info(ServerPid),
-  vertebra_xmpp_new:send_wait_set(XMPP, {}, To, op_builder:error_op("fatal", Error, Token)).
+  vertebra_xmpp:send_wait_set(XMPP, {}, To, op_builder:error_op("fatal", Error, Token)).
 
 send_error(ServerPid, To, Token, Error) ->
   XMPP= get_connection_info(ServerPid),
-  vertebra_xmpp_new:send_wait_set(XMPP, {}, To, ops_builder:error_op(Error, Token)).
+  vertebra_xmpp:send_wait_set(XMPP, {}, To, ops_builder:error_op(Error, Token)).
 
 send_result(ServerPid, To, Token, Result) ->
   XMPP= get_connection_info(ServerPid),
-  vertebra_xmpp_new:send_wait_set(XMPP, {}, To, ops_builder:result_op(Result, Token)).
+  vertebra_xmpp:send_wait_set(XMPP, {}, To, ops_builder:result_op(Result, Token)).
 
 end_result(ServerPid, To, Token) ->
   XMPP= get_connection_info(ServerPid),
-  vertebra_xmpp_new:send_wait_set(XMPP, {}, To, ops_builder:final_op(Token)).
+  vertebra_xmpp:send_wait_set(XMPP, {}, To, ops_builder:final_op(Token)).
 
 add_resources(ServerPid, Resources) ->
   gen_server:call(ServerPid, {add_resources, Resources}).
@@ -175,10 +175,10 @@ dispatch(ServerPid, ServerState, From, PacketId, Token, Op) ->
                 end,
   if
     CanContinue =:= true ->
-      vertebra_xmpp_new:confirm_op(Connection, {}, From, Op, Token, PacketId, true),
+      vertebra_xmpp:confirm_op(Connection, {}, From, Op, Token, PacketId, true),
       run_callback(ServerPid, ServerState, From, Token, Op);
     true ->
-      vertebra_xmpp_new:confirm_op(Connection, {}, From, Op, Token, PacketId, false)
+      vertebra_xmpp:confirm_op(Connection, {}, From, Op, Token, PacketId, false)
   end.
 
 run_callback(ServerPid, ServerState, From, Token, Op) ->
@@ -189,8 +189,8 @@ run_callback(ServerPid, ServerState, From, Token, Op) ->
   catch
     error:undef ->
       Error = lists:flatten(["No handler for op: ", OpName]),
-      vertebra_xmpp_new:send_wait_set(ServerState#state.xmpp, {}, From, op_builder:error_op("fatal", Error, Token)),
-      vertebra_xmpp_new:send_wait_set(ServerState#state.xmpp, {}, From, ops_builder:final_op(Token))
+      vertebra_xmpp:send_wait_set(ServerState#state.xmpp, {}, From, op_builder:error_op("fatal", Error, Token)),
+      vertebra_xmpp:send_wait_set(ServerState#state.xmpp, {}, From, ops_builder:final_op(Token))
   end.
 
 find_vertebra_element([{xmlelement, Name, _, _}=H|_T]) when Name =:= "op";

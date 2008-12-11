@@ -59,7 +59,7 @@ init([Config, Resources, AdvertiseInterval]) when length(Resources) == 0 ->
 init([Config, Resources, AdvertiseInterval]) ->
   io:format("Resources advertised. Starting resource advertiser...~n"),
   process_flag(trap_exit, true),
-  advertiser:advertise(Config, Resources, AdvertiseInterval + ?FUDGE_FACTOR),
+  vertebra_advertiser:advertise(Config, Resources, AdvertiseInterval + ?FUDGE_FACTOR),
   {ok, #state{
      xmpp_config=Config,
      resources=Resources,
@@ -72,11 +72,11 @@ handle_call(_Request, _From, State) ->
 
 handle_cast(stop, State) ->
   io:format("Resource advertiser stopping...~n"),
-  advertiser:advertise(State#state.xmpp_config, [], 0),
+  vertebra_advertiser:advertise(State#state.xmpp_config, [], 0),
   {stop, normal, State};
 
 handle_cast(readvertise, State) ->
-  advertiser:advertise(State#state.xmpp_config,
+  vertebra_advertiser:advertise(State#state.xmpp_config,
                        [],
                        State#state.advertise_interval + ?FUDGE_FACTOR),
   {noreply, State};
@@ -88,7 +88,7 @@ handle_cast({add, Resources}, State) ->
     true ->
       timer:cancel(State#state.advertisement_timer)
   end,
-  advertiser:advertise(State#state.xmpp_config,
+  vertebra_advertiser:advertise(State#state.xmpp_config,
                        Resources,
                        State#state.advertise_interval + ?FUDGE_FACTOR),
   {noreply, State#state{advertisement_timer=set_timer(State#state.advertise_interval)}};
@@ -100,7 +100,7 @@ handle_cast({remove, Resources}, State) ->
     true ->
       timer:cancel(State#state.advertisement_timer)
   end,
-  advertiser:advertise(State#state.xmpp_config, Resources, 0),
+  vertebra_advertiser:advertise(State#state.xmpp_config, Resources, 0),
   {noreply, State#state{advertisement_timer=set_timer(State#state.advertise_interval)}};
 
 handle_cast(_Msg, State) ->

@@ -29,7 +29,7 @@ build_resources_test_() ->
   generate([
 	    ?_assertEqual([{resource, [{"name", "test"}], <<"test">>}], vertebra_xmpp:build_resources(["test"])),
 	    ?_assertEqual([], vertebra_xmpp:build_resources([])),
-	    ?_assertEqual("abc", vertebra_xmpp:get_token([{xmlelement, "test", [{"token", "abc"}], []}])),
+	    ?_assertEqual("abc", vertebra_xmpp:get_token([{xmlelement, "op", [{"token", "abc"}], []}])),
 	    ?_assertEqual(undefined, vertebra_xmpp:get_token([{xmlelement, "test", [{"not_token", "abc"}], []}])),
 	    ?_assertEqual(?ARG_DECODED, {ok, vertebra_xmpp:get_named_arg("target", ?ARG_OP)}),
 	    ?_assertEqual(not_found, vertebra_xmpp:get_named_arg("target", ?NOARG_OP))]).
