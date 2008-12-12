@@ -88,17 +88,8 @@ init([Config, CallbackModule]) ->
             undefined ->
               #state{xmpp=Cn, cb_module=CallbackModule, xmpp_config=Config};
             _ ->
-              case CallbackModule:advertised_resources() of
-                [] ->
-                  {ok, P} = gen_actor_advertiser:start_link(Config, [], ?DEFAULT_TTL),
-                  #state{xmpp=Cn, cb_module=CallbackModule, xmpp_config=Config, advertiser=P};
-                {} ->
-                  {ok, P} = gen_actor_advertiser:start_link(Config, [], ?DEFAULT_TTL),
-                  #state{xmpp=Cn, cb_module=CallbackModule, xmpp_config=Config, advertiser=P};
-                Resources ->
-                  {ok, P} = gen_actor_advertiser:start_link(Config, Resources, ?DEFAULT_TTL),
-                  #state{xmpp=Cn, cb_module=CallbackModule, xmpp_config=Config, advertiser=P}
-              end
+              {ok, P} = start_advertiser(Config, CallbackModule:advertised_resources()),
+              #state{xmpp=Cn, cb_module=CallbackModule, xmpp_config=Config, advertiser=P}
           end,
   {ok, State}.
 
@@ -233,3 +224,10 @@ find_vertebra_element([_H|T]) ->
   find_vertebra_element(T);
 find_vertebra_element([]) ->
   undefined.
+
+start_advertiser(Config, {}) ->
+  gen_actor_advertiser:start_link(Config, [], ?DEFAULT_TTL);
+start_advertiser(Config, {Resources}) ->
+  gen_actor_advertiser:start_link(Config, Resources, ?DEFAULT_TTL);
+start_advertiser(Config, {TTL, Resources}) ->
+  gen_actor_advertiser:start_link(Config, Resources, TTL).
