@@ -17,46 +17,37 @@
 
 -module(cavalcade_worker).
 
--author("ksmith@engineyard.com").
-
 -behaviour(gen_server).
 
-%% API
--export([start_link/4]).
+-author("ksmith@engineyard.com").
 
 -define(OK, {string, [{"name", "result"}], <<"ok">>}).
 
-%% gen_server callbacks
--export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-         terminate/2, code_change/3]).
-
--export([kickstart/1, get_results/1]).
+-export([start_link/4, kickstart/1]).
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
+-export([terminate/2, code_change/3]).
 
 -record(state,
-        {packetid,
+        {owner,
          from,
          op,
          token}).
 
-start_link(From, PacketId, Token, Op) ->
-  gen_server:start_link(?MODULE, [From, PacketId, Token, Op], []).
+start_link(Owner, From, Token, Op) ->
+  gen_server:start_link(?MODULE, [Owner, From, Token, Op], []).
 
 kickstart(Worker) ->
   gen_server:cast(Worker, start).
 
-get_results(Worker) ->
-  gen_server:call(Worker, get_results).
-
-init([From, PacketId, Token, Op]) ->
+init([Owner, From, Token, Op]) ->
   process_flag(trap_exit, true),
-  {ok, #state{from=From,
-              op=Op,
-              packetid=PacketId,
-              token=Token}}.
+  {ok, #state{owner=Owner,
+              from=From,
+              token=Token,
+              op=Op}}.
 
 handle_call(_Request, _From, State) ->
-  Reply = ok,
-  {reply, Reply, State}.
+  {reply, ignored, State}.
 
 handle_cast(start, State) ->
   #state{op=Op} = State,
@@ -70,12 +61,11 @@ handle_info(stop, State) ->
   {stop, normal, State};
 
 handle_info({workflow_results, Results}, State) ->
-  {ok, R} = xml_util:convert(to, Results),
-  cavalcade_srv:send_set(State#state.from, ops_builder:result_op(R, State#state.token)),
-  cavalcade_srv:send_set(State#state.from, ops_builder:final_op(State#state.token)),
+  gen_actor:send_result(State#state.owner, State#state.from, State#state.token, Results),
+  gen_actor:end_results(State#state.owner, State#state.from, State#state.token),
   {stop, normal, State};
 
-handle_info(_Info, State) ->
+handle_info(_Msg, State) ->
   {noreply, State}.
 
 terminate(_Reason, _State) ->
@@ -85,115 +75,42 @@ code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
 %% Internal functions
-handle_request("/workflow/store"=Action, State) ->
-  case is_authorized(State#state.from, Action) of
-    false ->
-      cavalcade_srv:confirm_op(State#state.from, State#state.op, State#state.token, State#state.packetid, false);
-    true ->
-      case cavalcade_xmpp:get_named_arg("workflow", State#state.op) of
-        not_found ->
-          cavalcade_srv:confirm_op(State#state.from, State#state.op, State#state.token, State#state.packetid, false);
-        {string, _Attrs, Workflow} ->
-          cavalcade_srv:confirm_op(State#state.from, State#state.op, State#state.token, State#state.packetid, true),
-          case workflow_parser:parse_workflow(xml_util:unescape(Workflow)) of
-            {ok, Workflows} ->
-              ok = store_workflows(Workflows),
-              {ok, Res} = xml_util:convert(to, ?OK),
-              cavalcade_srv:send_set(State#state.from, ops_builder:result_op(Res, State#state.token)),
-              cavalcade_srv:send_set(State#state.from, ops_builder:final_op(State#state.token));
-            {error, Reason} ->
-              Result = xml_util:convert(to, {string, [{"name", "result"}], list_to_binary(lists:flatten(["error: ", Reason]))}),
-              cavalcade_srv:send_set(State#state.from, ops_builder:result_op(Result, State#state.token)),
-              cavalcade_srv:send_set(State#state.from, ops_builder:final_op(State#state.token))
-          end;
-        _InvalidWorkflow ->
-          cavalcade_srv:confirm_op(State#state.from, State#state.op, State#state.token, State#state.packetid, false)
-      end
+handle_request("/workflow/store", State) ->
+  {string, _, Workflow} = vertebra_xmpp:get_named_arg("workflow", State#state.op),
+  case workflow_parser:parse_workflow(xml_util:unescape(Workflow)) of
+    {ok, Workflows} ->
+      ok = store_workflows(Workflows),
+      gen_actor:send_result(State#state.owner, State#state.from, State#state.token, ?OK);
+    {error, Reason} ->
+      gen_actor:send_error(State#state.owner, State#state.from, State#state.token, Reason)
   end,
+  gen_actor:end_result(State#state.owner, State#state.from, State#state.token),
   {stop, normal, State};
 
-handle_request("/workflow/execute"=Action, State) ->
-  case is_authorized(State#state.from, Action) of
-    false ->
-      cavalcade_srv:confirm_op(State#state.from, State#state.op, State#state.token, State#state.packetid, false),
-      {stop, normal, State};
-    true ->
-      case cavalcade_xmpp:get_named_arg("workflow", State#state.op) of
-        not_found ->
-          cavalcade_srv:confirm_op(State#state.from, State#state.op, State#state.token, State#state.packetid, false),
-          {stop, normal, State};
-        {string, _Attrs, WorkflowName} when is_binary(WorkflowName) ->
-          cavalcade_srv:confirm_op(State#state.from, State#state.op, State#state.token, State#state.packetid, true),
-          WN = binary_to_list(WorkflowName),
-          case invoke_workflow(WN) of
-            {ok, _} ->
-              {noreply, State};
-            {error, Err} ->
-              cavalcade_srv:send_set(State#state.from, ops_builder:result_op(Err, State#state.token)),
-              cavalcade_srv:send_set(State#state.from, ops_builder:final_op(State#state.token)),
-              {stop, normal, State}
-          end
-      end
-  end;
-
-handle_request("/workflow/status", State) ->
-  case cavalcade_xmpp:get_named_arg("workflow_handle", State#state.op) of
-    not_found ->
-      io:format("Missing workflow_handle. nack'd~n"),
-      cavalcade_srv:confirm_op(State#state.from, State#state.op, State#state.token, State#state.packetid, false);
-    {string, [{"name", "workflow_handle"}], WH} ->
-      WorkflowHandle = binary_to_list(WH),
-      case cavalcade_srv:find_worker(WorkflowHandle) of
-        not_found ->
-          io:format("Missing worker. nack'd~n"),
-          cavalcade_srv:confirm_op(State#state.from, State#state.op, State#state.token, State#state.packetid, false);
-        {ok, Worker} ->
-          cavalcade_srv:confirm_op(State#state.from, State#state.op, State#state.token, State#state.packetid, true),
-          case cavalcade_worker:get_results(Worker) of
-            still_running ->
-              {ok, R} = xml_util:convert(to, {string, [{"name", "results"}], <<"still_running">>}),
-              io:format("Sending result: ~p~n", [R]),
-              cavalcade_srv:send_set(State#state.from, ops_builder:result_op(R, State#state.token));
-            Results ->
-              {ok, R} = xml_util:convert(to, Results),
-              cavalcade_srv:send_set(State#state.from, ops_builder:result_op(R, State#state.token))
-          end,
-          cavalcade_srv:send_set(State#state.from, ops_builder:final_op(State#state.token))
-      end
-  end,
-  {stop, normal, State};
-
-handle_request("/workflow/delete", State) ->
-  {stop, normal, State};
-handle_request("/workflow/list", State) ->
-  {stop, normal, State};
-handle_request(_Ignored, State) ->
-  cavalcade_srv:confirm_op(State#state.from, State#state.op, State#state.token, State#state.packetid, false),
-  {stop, normal, State}.
-
-is_authorized(From, Action) ->
-  Config = cavalcade_srv:get_config(),
-  case vertebra_auth:verify(Config, proplists:get_value(herault, Config), From, [Action]) of
-    {ok, Resp} ->
-      Resp;
-    Error ->
-      Error
+handle_request("/workflow/execute", State) ->
+  {string, _Attrs, WorkflowName} = vertebra_xmpp:get_named_arg("workflow", State#state.op),
+  case invoke_workflow(WorkflowName) of
+    ok ->
+      {noreply, State};
+    {error, Err} ->
+      gen_actor:send_error(State#state.owner, State#state.from, State#state.token, Err),
+      gen_actor:end_result(State#state.owner, State#state.from, State#state.token),
+      {stop, normal, State}
   end.
 
 store_workflows([H|T]) ->
-  ok = workflow_store:store_workflow(H),
+  ok = workflow_store:store_workflows(H),
   store_workflows(T);
 store_workflows([]) ->
   ok.
 
-invoke_workflow(WorkflowName) ->
+invoke_workflow(WorkflowName) when is_binary(WorkflowName)->
+  invoke_workflow(binary_to_list(WorkflowName));
+invoke_workflow(WorkflowName) when is_list(WorkflowName)->
   case workflow_store:find_workflow(WorkflowName) of
     {ok, Workflow} ->
-      {ok, P} = workflow_runner:start_link(cavalcade_srv:get_config(), Workflow, self()),
-      WorkflowToken = workflow_runner:get_token(P),
-      workflow_runner:run(P),
-      xml_util:convert(to, {string, [{"name", "result"}], list_to_binary(WorkflowToken)});
+      {ok, _} = workflow_runner:start_link(cavalcade_srv:get_config(), Workflow, self()),
+      ok;
     _Error ->
-      {ok, Result} = xml_util:convert(to, {string, [{"name", "error"}], <<"error locating workflow">>}),
-      {error, Result}
+      {error, "error locating workflow"}
   end.

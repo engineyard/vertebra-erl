@@ -194,7 +194,7 @@ send_commands(Config, Op, Params, Token, [Target|T], NotifyInfo) ->
       send_commands(Config, Op, Params, Token, Target, NotifyInfo);
     false ->
       io:format("Sending ~p to ~p~n", [Op, vert_string_to_list(Target)]),
-      cavalcade_command:run(Config, Op, Params, Token, vert_string_to_list(Target), NotifyInfo)
+      vertebra_cmd:run(Config, Op, Params, Token, vert_string_to_list(Target), NotifyInfo)
   end,
   send_commands(Config, Op, Params, Token, T, NotifyInfo);
 send_commands(_Config, _Op, _Params, _Token, [], _NotifyInfo) ->

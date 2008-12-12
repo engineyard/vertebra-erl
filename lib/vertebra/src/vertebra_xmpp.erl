@@ -17,6 +17,8 @@
 
 -module(vertebra_xmpp).
 
+-define(MAX_PACKET_ID, 1000000).
+
 -export([confirm_op/7, get_named_arg/2, get_token/1]).
 -export([send_set/4, send_wait_set/4, send_result/5]).
 -export([build_resources/1]).
@@ -59,15 +61,15 @@ get_named_arg(Name, Op) ->
   {ok, Args} = xml_util:convert(from, get_args(Op)),
   find_arg(Name, Args).
 
-get_token([{xmlelement, Name, Attrs, _}=H|_T]) when Name =:= "op";
-                                                    Name =:= "ack";
-                                                    Name =:= "result";
-                                                    Name =:= "final" ->
+get_token([{xmlelement, Name, Attrs, _}|_T]) when Name =:= "op";
+                                                  Name =:= "ack";
+                                                  Name =:= "result";
+                                                  Name =:= "final" ->
   case proplists:get_value("token", Attrs) of
     undefined ->
       undefined;
     Token ->
-      {H, Token}
+      Token
   end;
 get_token([_H|T]) ->
   get_token(T);
@@ -102,4 +104,4 @@ build_resources([], Accum) ->
 new_packet_id() ->
   {T1, T2, T3} = erlang:now(),
   random:seed(T1, T2, T3),
-  integer_to_list(random:uniform(T1) + random:uniform(T2)).
+  integer_to_list(random:uniform(?MAX_PACKET_ID)).

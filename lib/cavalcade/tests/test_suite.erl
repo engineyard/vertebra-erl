@@ -21,5 +21,4 @@
 all_test_() ->
   [{module, test_workflow_store},
    {module, test_workflow_parser},
-   {module, test_cavalcade_command},
    {module, test_workflow_manager}].
