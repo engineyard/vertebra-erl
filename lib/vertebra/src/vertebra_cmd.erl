@@ -84,7 +84,7 @@ execute(CommandPid, ClientRef) ->
 
 init([Config, Op, Inputs, Target, Token]) ->
   {ok, Connection} = natter_connection:start_link(Config),
-  natter_connection:register_exchange(Connection, Target, self()),
+  natter_connection:register_exchange(Connection, "iq", Target, self()),
   {ok, #state{inputs=Inputs,
               op=Op,
               target=Target,
@@ -92,7 +92,7 @@ init([Config, Op, Inputs, Target, Token]) ->
               connection=Connection}};
 
 init([[], Op, Inputs, Target, Token, Connection]) ->
-  natter_connection:register_exchange(Connection, Target, self()),
+  natter_connection:register_exchange(Connection, "iq", Target, self()),
   {ok, #state{inputs=Inputs,
               op=Op,
               target=Target,
@@ -151,7 +151,7 @@ terminate(_Reason, State) ->
     true ->
       natter_connection:close(State#state.connection);
     false ->
-      natter_connection:unregister_exchange(State#state.connection, State#state.target)
+      natter_connection:unregister_exchange(State#state.connection, "iq", State#state.target)
   end,
   ok.
 
