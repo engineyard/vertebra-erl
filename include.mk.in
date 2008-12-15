@@ -1,11 +1,14 @@
 ERLC = @ERLC@
 ERLC_FLAGS = -o ./ebin
+ERL = @ERL@
 SED = @SED@
 
 TARGET = $(VERTEBRA_LIB)/$(APP)-$(VERSION)
 
 APP_SOURCE = $(wildcard src/*.app.in)
 APP_FILES = $(APP_SOURCE:src/%.app.in=ebin/%.app)
+
+export ERL_LIBS = $(abspath ..)
 
 all: compile-native compile-src $(APP_FILES)
 
@@ -39,9 +42,7 @@ install-config:
 run-tests:
 	@ echo
 	@ echo Running tests...
-	$(ERL) $(TEST_OPTS) \
-		-pa $(VERTEBRA)/ebin -pa ./ebin -eval "test_suite:test()" -s init stop \
-		-noshell
+	$(ERL) $(TEST_OPTS) -pa ./ebin -eval "test_suite:test()" -s init stop -noshell
 
 test tests: compile-src compile-tests run-tests
 
