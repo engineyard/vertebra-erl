@@ -7,7 +7,6 @@ sbindir = @sbindir@
 sysconfdir = @sysconfdir@
 
 export ERL = @ERL@
-export ERL_LIBS = $(abspath lib)
 export INSTALL = @INSTALL@
 export VERTEBRA_CONF = ${sysconfdir}/vertebra
 export VERTEBRA_LIB = ${libdir}/vertebra/lib
