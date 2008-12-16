@@ -6,4 +6,4 @@ BEAMS = $(FILES:%.erl=../ebin/%.beam)
 all: $(BEAMS)
 
 ../ebin/%.beam: %.erl
-	$(ERLC) +debug_info -pa ../ebin -I ../include -I ../src -o ../ebin $<
+	$(ERLC) -pa ../ebin -I ../include -I ../src -o ../ebin $<

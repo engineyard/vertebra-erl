@@ -1,6 +1,5 @@
 ERLC = @ERLC@
 ERLC_FLAGS = -o ./ebin
-ERL = @ERL@
 SED = @SED@
 
 TARGET = $(VERTEBRA_LIB)/$(APP)-$(VERSION)

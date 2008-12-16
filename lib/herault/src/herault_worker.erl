@@ -24,20 +24,22 @@
 
 -behaviour(gen_server).
 
+-export([seconds_now/0]).
+
 %% API
 -export([start_link/4]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-	 terminate/2, code_change/3]).
+         terminate/2, code_change/3]).
 
 -export([kickstart/1]).
 
 -record(state,
-	{owner,
-	 from,
-	 op,
-	 token}).
+        {owner,
+         from,
+         op,
+         token}).
 
 start_link(ServerPid, From, Token, Op) ->
   gen_server:start_link(?MODULE, [ServerPid, From, Token, Op], []).
@@ -47,9 +49,9 @@ kickstart(Worker) ->
 
 init([ServerPid, From, Token, Op]) ->
   {ok, #state{owner=ServerPid,
-	      from=From,
-	      op=Op,
-	      token=Token}}.
+              from=From,
+              op=Op,
+              token=Token}}.
 
 handle_call(_Request, _From, State) ->
   Reply = ok,
@@ -75,16 +77,16 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal functions
 handle_request("/security/discover", State) ->
   {ok, Resources} = xml_util:convert(from, get_args(State)),
-  {_, TTL, _} = erlang:now(),
+  TTL = seconds_now(),
   case listing_store:listing_query(lists:map(fun({resource, _Attr, ResName}) -> binary_to_list(ResName) end, Resources), TTL) of
     {ok, Jids} ->
       %% Ugly hack for now
       {ok, Result} = case string:str(State#state.from, "cavalcade") > 0 of
-		       true ->
-			 xml_util:convert(to, build_refs(Jids));
-		       false ->
-			 xml_util:convert(to, {list, [{"name", "jids"}], build_refs(Jids)})
-		     end,
+                       true ->
+                         xml_util:convert(to, build_refs(Jids));
+                       false ->
+                         xml_util:convert(to, {list, [{"name", "jids"}], build_refs(Jids)})
+                     end,
       gen_actor:send_result(State#state.owner, State#state.from, State#state.token, Result);
     _Error ->
       io:format("!! Error (~p: ~p): ~p~n", [?FILE, ?LINE, _Error]),
@@ -95,37 +97,36 @@ handle_request("/security/discover", State) ->
 
 handle_request("/security/advertise", State) ->
   {ok, Args} = xml_util:convert(from, get_args(State)),
-  {Resources, {TTL, Timestamp}, AdvertiserJid} = extract_args(Args),
+  {Resources, TTL, AdvertiserJid} = extract_args(Args),
   RegistrationJid = case AdvertiserJid of
-		      undefined ->
-			State#state.from;
-		      _ ->
-			[FromUser|_] = string:tokens(State#state.from, "/"),
-			[AdvertiserJidUser|_] = string:tokens(AdvertiserJid, "/"),
-			if
-			  FromUser =:= AdvertiserJidUser ->
-			    AdvertiserJid;
-			  true ->
-			    State#state.from
-			end
-		    end,
+                      undefined ->
+                        State#state.from;
+                      _ ->
+                        [FromUser|_] = string:tokens(State#state.from, "/"),
+                        [AdvertiserJidUser|_] = string:tokens(AdvertiserJid, "/"),
+                        if
+                          FromUser =:= AdvertiserJidUser ->
+                            AdvertiserJid;
+                          true ->
+                            State#state.from
+                        end
+                    end,
   case TTL of
     0 ->
       case remove_resources(RegistrationJid, Resources, Timestamp) of
-	ok ->
-	  {ok, Result} = xml_util:convert(to, {list, [{"name", "result"}], []}),
+        ok ->
+          {ok, Result} = xml_util:convert(to, {list, [{"name", "result"}], []}),
           gen_actor:send_result(State#state.owner, State#state.from, State#state.token, Result);
-	{error, Err} ->
-	  gen_actor:send_error(State#state.owner, State#state.from, State#state.token, Err)
+        {error, Err} ->
+          gen_actor:send_error(State#state.owner, State#state.from, State#state.token, Err)
       end,
       gen_actor:end_result(State#state.owner, State#state.from, State#state.token);
     _ ->
-      case listing_store:add_listing(RegistrationJid, Resources, Timestamp) of
-	ok ->
-          {ok, TTLElement} = xml_util:convert(to, {i4, [{"name", "ttl"}], TTL}),
-	  gen_actor:send_result(State#state.owner, State#state.from, State#state.token, TTLElement);
-	_Error ->
-	  gen_actor:send_result(State#state.owner, State#state.from, State#state.token, "Error recording resources")
+      case listing_store:add_listing(RegistrationJid, Resources, TTL) of
+        ok ->
+          gen_actor:send_result(State#state.owner, State#state.from, State#state.token, get_single_arg(State));
+        _Error ->
+          gen_actor:send_result(State#state.owner, State#state.from, State#state.token, "Error recording resources")
       end,
       gen_actor:end_result(State#state.owner, State#state.from, State#state.token)
   end,
@@ -134,16 +135,16 @@ handle_request("/security/advertise", State) ->
 handle_request("/security/authorize", State) ->
   {ok, SubEls} = xml_util:convert(from, get_args(State)),
   AuthCheck = case extract_auth_target(SubEls) of
- 		not_found ->
- 		  {string, [{"name", "response"}], <<"notauthorized">>};
- 		Target ->
- 		  case auth_store:has_access(convert_to_list(Target)) of
- 		    true ->
- 		      {string, [{"name", "response"}], <<"authorized">>};
- 		    false ->
- 		      {string, [{"name", "response"}], <<"notauthorized">>}
- 		  end
- 	      end,
+                not_found ->
+                  {string, [{"name", "response"}], <<"notauthorized">>};
+                Target ->
+                  case auth_store:has_access(convert_to_list(Target)) of
+                    true ->
+                      {string, [{"name", "response"}], <<"authorized">>};
+                    false ->
+                      {string, [{"name", "response"}], <<"notauthorized">>}
+                  end
+              end,
   {ok, AuthResult} = xml_util:convert(to, AuthCheck),
   gen_actor:send_result(State#state.owner, State#state.from, State#state.token, AuthResult),
   gen_actor:end_result(State#state.owner, State#state.from, State#state.token),
@@ -156,51 +157,43 @@ handle_request(Ignored, State) ->
 
 %% Internal functions
 remove_resources(RegistrationJid, Resources, TTL) ->
-  case length(Resources) of
-    0 ->
-      case  listing_store:delete_listing(RegistrationJid) of
-	ok ->
-	  ok;
-	_Error ->
-          error_logger:error_msg("Delete error: ~p~n", [_Error]),
-          {error, "Error deleting resources"}
-      end;
-    _ ->
-      case listing_store:delete_resources(RegistrationJid, Resources, TTL) of
-        ok ->
-	  ok;
-	_Error ->
-          error_logger:error_msg("Delete error: ~p~n", [_Error]),
-          {error, "Error deleting resources"}
-      end
+  {F,A} = case length(Resources) of
+            0 -> {delete_listing, [RegistrationJid]};
+            _ -> {delete_resources, [RegistrationJid, Resources, TTL]}
+          end,
+  case apply(listing_store, F, A) of
+    ok ->
+      ok;
+    _Error ->
+      {error, "Error deleting resources"}
   end.
 
 extract_args(Args) ->
-  {_, Now, _} = erlang:now(),
-  extract_args(Args, {[], {?STD_TTL, Now + ?STD_TTL}, undefined}).
+  Now = seconds_now(),
+  extract_args(Args, {[], Now + ?STD_TTL, undefined}).
 
 extract_args([{list, [{"name", "resources"}], Resources}|T], {_, TTL, AdvertiserJid}) ->
   Names = lists:map(fun({resource, Attrs, Resource}) ->
-			case proplists:get_value("name", Attrs) of
-			  undefined ->
-			    binary_to_list(Resource);
-			  Value ->
-			    Value
-			end end, Resources),
+                        case proplists:get_value("name", Attrs) of
+                          undefined ->
+                            binary_to_list(Resource);
+                          Value ->
+                            Value
+                        end end, Resources),
   extract_args(T, {Names, TTL, AdvertiserJid});
 
 extract_args([{resource, _, Resource}|T], {Resources, TTL, AdvertiserJid}) ->
   extract_args(T, {[binary_to_list(Resource)|Resources], TTL, AdvertiserJid});
 
 extract_args([{integer, [{"name", "ttl"}], ClientTTL}|T], {R, _, AdvertiserJid}) ->
-  {_, Now, _} = erlang:now(),
+  Now = seconds_now(),
   FinalTTL = if
-	       ClientTTL == 0 ->
-		 ClientTTL;
-	       true ->
-		 Now + ClientTTL
-	     end,
-  extract_args(T, {R, {ClientTTL, FinalTTL}, AdvertiserJid});
+               ClientTTL == 0 ->
+                 ClientTTL;
+               true ->
+                 Now + ClientTTL
+             end,
+  extract_args(T, {R, FinalTTL, AdvertiserJid});
 
 extract_args([{string, [{"name", "advertiser"}], AdvertiserJid}|T], {R, TTL, _}) ->
   extract_args(T, {R, TTL, binary_to_list(AdvertiserJid)});
@@ -219,8 +212,8 @@ get_single_arg(State) ->
 
 build_refs(Jids) ->
   lists:map(fun(Jid) ->
-		{string, [], herault_util:jid_to_string(Jid)} end,
-	    Jids).
+                {string, [], herault_util:jid_to_string(Jid)} end,
+            Jids).
 
 extract_auth_target([{string, [{"name", "from"}], Value}|_]) when is_binary(Value) ->
   V = binary_to_list(Value),
@@ -239,3 +232,7 @@ convert_to_list(Data) when is_list(Data) ->
   Data;
 convert_to_list(Data) when is_binary(Data) ->
   binary_to_list(Data).
+
+seconds_now() ->
+  {MegaSecs, Secs, _MicroSecs} = erlang:now(),
+  1000000 * MegaSecs + Secs.

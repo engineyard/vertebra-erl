@@ -23,7 +23,7 @@
 
 start() ->
   ok = application:start(mnesia),
-  ok = application:start(vertebra),
+  ok = application:start(vertebra_common),
   application:start(herault).
 
 start(_Type, _StartArgs) ->

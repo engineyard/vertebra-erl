@@ -34,26 +34,27 @@ unadvertise(Config, Resources, TTL) ->
   execute_command("/security/unadvertise", Config, Resources, TTL).
 
 convert_login(Config) ->
-  [{resource, "advertiser"} | lists:filter(fun({Name, _Value}) ->
-					if
-					  Name =:= resource ->
-					    false;
-					  true ->
-					    true
-					end end, Config)].
+  Token = uuid_server:generate_uuid(),
+  [{resource, Token} | lists:filter(fun({Name, _Value}) ->
+                                        if
+                                          Name =:= resource ->
+                                            false;
+                                          true ->
+                                            true
+                                        end end, Config)].
 
 execute_command(Op, Config, Resources, TTL) ->
   Login = convert_login(Config),
-  Token = uuid_server:generate_uuid(),
+  Token = proplists:get_value(resource, Login),
   Res = vertebra_xmpp:build_resources(Resources),
   HeraultJid = proplists:get_value(herault, Login),
   AdvertiserJid = lists:flatten([proplists:get_value(username, Login), "@",
                                  proplists:get_value(host, Login), "/",
                                  proplists:get_value(username, Login)]),
   Inputs = [{string, [{"name", "advertiser"}], list_to_binary(AdvertiserJid)},
-	    {list, [{"name", "resources"}], Res},
-	    {integer, [{"name", "ttl"}], TTL}],
-  case vertebra_cmd:run(Login, Op, Inputs, Token, HeraultJid) of
+            {list, [{"name", "resources"}], Res},
+            {integer, [{"name", "ttl"}], TTL}],
+  case vertebra_command:run(Login, Op, Inputs, Token, HeraultJid) of
     {ok, _, _} ->
       ok;
     Error ->
