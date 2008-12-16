@@ -126,7 +126,6 @@ handle_cast(_Msg, State) ->
 %% Description: Handling all non call/cast messages
 %%--------------------------------------------------------------------
 handle_info({packet, {xmlelement, "iq", Attrs, SubEls}=Stanza}=Info, State) ->
-  io:format("Stanza: ~p~n", [Stanza]),
   case proplists:get_value("type", Attrs) of
     "result" ->
       io:format("Skipping bad starting packet: ~p~n", [Stanza]);

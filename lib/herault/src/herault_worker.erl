@@ -113,10 +113,12 @@ handle_request("/security/advertise", State) ->
     0 ->
       case remove_resources(RegistrationJid, Resources, Timestamp) of
 	ok ->
-	  ok;
+	  {ok, Result} = xml_util:convert(to, {list, [{"name", "result"}], []}),
+          gen_actor:send_result(State#state.owner, State#state.from, State#state.token, Result);
 	{error, Err} ->
 	  gen_actor:send_error(State#state.owner, State#state.from, State#state.token, Err)
-      end;
+      end,
+      gen_actor:end_result(State#state.owner, State#state.from, State#state.token);
     _ ->
       case listing_store:add_listing(RegistrationJid, Resources, Timestamp) of
 	ok ->
