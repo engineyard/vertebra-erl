@@ -113,7 +113,7 @@ handle_request("/security/advertise", State) ->
                     end,
   case TTL of
     0 ->
-      case remove_resources(RegistrationJid, Resources, Timestamp) of
+      case remove_resources(RegistrationJid, Resources, TTL) of
         ok ->
           {ok, Result} = xml_util:convert(to, {list, [{"name", "result"}], []}),
           gen_actor:send_result(State#state.owner, State#state.from, State#state.token, Result);
