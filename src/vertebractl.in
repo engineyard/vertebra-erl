@@ -9,7 +9,7 @@ usage()
 APP=$1; shift
 
 # Define defaults
-ERL=@erl@
+ERL=@ERL@
 [ "$NODE" == "" ] && NODE=$APP
 [ "$HOST" == "" ] && HOST=localhost
 ERLANG_NODE=$NODE@$HOST
@@ -17,7 +17,9 @@ ERLANG_NODE=$NODE@$HOST
 [ "$SASL_LOG" == "" ] && SASL_LOG=/tmp/${APP}_sasl.log
 
 # Load system defaults
-[ -r @vertebra_conf@/vertebractl.conf ] && . @vertebra_conf@/vertebractl.conf
+if [ -r @vertebra_confdir@/vertebractl.conf ]; then
+    . @vertebra_confdir@/vertebractl.conf
+fi
 
 # Parse command line
 ARGS=

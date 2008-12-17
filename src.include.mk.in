@@ -1,9 +1,0 @@
-ERLC = @ERLC@
-
-FILES = $(wildcard *.erl)
-BEAMS = $(FILES:%.erl=../ebin/%.beam)
-
-all: $(BEAMS)
-
-../ebin/%.beam: %.erl
-	$(ERLC) -pa ../ebin -I ../include -I ../src -o ../ebin $<

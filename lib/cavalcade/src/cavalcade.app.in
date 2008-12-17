@@ -1,8 +1,8 @@
 {application, cavalcade,
   [{description, "cavalcade"},
-  {vsn, "@version@"},
+  {vsn, "@VERSION@"},
   {modules, [@modules@]},
   {registered, [cavalcade_srv,cavalcade_sup]},
   {applications, [kernel, stdlib, mnesia, vertebra]},
-  {env, [{config_file, ["@vertebra_conf@/cavalcade.cfg"]}]},
+  {env, [{config_file, ["@vertebra_confdir@/cavalcade.cfg"]}]},
   {mod, {cavalcade_app, []}}]}.

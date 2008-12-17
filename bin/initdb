@@ -1,0 +1,14 @@
+#!/bin/bash
+
+agents=$@
+dir=$(dirname $0)
+
+if [ "$agents" == "" ]; then
+    echo "USAGE: $0 [<agent> [<agent> [...]]]"
+    exit 1
+fi
+
+for agent in $agents; do
+    echo Cleaning $agent...
+    $dir/vertebractl $agent --config ../conf/vertebra.dev.conf initdb
+done

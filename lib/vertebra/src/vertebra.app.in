@@ -1,6 +1,6 @@
 {application, vertebra,
  [{description, "Erlang Vertebra Agent"},
-  {vsn, "@version@"},
+  {vsn, "@VERSION@"},
   {modules, [@modules@]},
   {registered, []},
   {applications, [kernel, stdlib]},

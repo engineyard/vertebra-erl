@@ -1,8 +1,8 @@
 {application, herault,
   [{description, "herault"},
-  {vsn, "@version@"},
+  {vsn, "@VERSION@"},
   {modules, [@modules@]},
   {registered, [herault_srv,herault_sup]},
   {applications, [kernel, stdlib, mnesia, vertebra]},
-  {env, [{config_file, "@vertebra_conf@/herault.cfg"}]},
+  {env, [{config_file, "@vertebra_confdir@/herault.cfg"}]},
   {mod, {herault_app, []}}]}.
