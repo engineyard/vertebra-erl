@@ -90,24 +90,12 @@ handle_call({add_resources, Resources}, _From, State) ->
 handle_call(_Msg, _From, State) ->
   {reply, ignored, State}.
 
-%%--------------------------------------------------------------------
-%% Function: handle_cast(Msg, State) -> {noreply, State} |
-%%                                      {noreply, State, Timeout} |
-%%                                      {stop, Reason, State}
-%% Description: Handling cast messages
-%%--------------------------------------------------------------------
 handle_cast(stop, State) ->
   {stop, shutdown, State};
 
 handle_cast(_Msg, State) ->
   {noreply, State}.
 
-%%--------------------------------------------------------------------
-%% Function: handle_info(Info, State) -> {noreply, State} |
-%%                                       {noreply, State, Timeout} |
-%%                                       {stop, Reason, State}
-%% Description: Handling all non call/cast messages
-%%--------------------------------------------------------------------
 handle_info({packet, {xmlelement, "iq", Attrs, SubEls}=Stanza}=Info, State) ->
   case proplists:get_value("type", Attrs) of
     "result" ->
@@ -130,20 +118,9 @@ handle_info(Info, State) ->
   io:format("Dropping packet: ~p~n", [Info]),
   {noreply, State}.
 
-%%--------------------------------------------------------------------
-%% Function: terminate(Reason, State) -> void()
-%% Description: This function is called by a gen_server when it is about to
-%% terminate. It should be the opposite of Module:init/1 and do any necessary
-%% cleaning up. When it returns, the gen_server terminates with Reason.
-%% The return value is ignored.
-%%--------------------------------------------------------------------
 terminate(_Reason, _State) ->
   ok.
 
-%%--------------------------------------------------------------------
-%% Func: code_change(OldVsn, State, Extra) -> {ok, NewState}
-%% Description: Convert process state when code is changed
-%%--------------------------------------------------------------------
 code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
@@ -158,7 +135,9 @@ rotate_token(Token) ->
   end.
 
 verify_permissions(Config, Herault, Caller, Resources) ->
-  case vertebra_auth:verify(Config, Herault, Caller, Resources) of
+  R = vertebra_auth:verify(Config, Herault, Caller, Resources),
+  io:format("R: ~p~n", [R]),
+  case R of
     {ok, Result} ->
       Result;
     _ ->
@@ -186,7 +165,8 @@ dispatch(ServerPid, ServerState, From, PacketId, Token, Op) ->
   end.
 
 run_callback(ServerPid, ServerState, From, Token, Op) ->
-  {xmlelement, OpName, _, _} = Op,
+  {xmlelement, "op", Attrs, _} = Op,
+  OpName = proplists:get_value("type", Attrs),
   Args = [OpName, ServerPid, From, Token, Op],
   try
     apply(ServerState#state.cb_module, handle_op, Args)

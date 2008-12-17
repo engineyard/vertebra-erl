@@ -50,13 +50,14 @@ verify(Config, HeraultJid, RequestorJid, Resources) ->
   Inputs = [build_requestor(RequestorJid) | vertebra_xmpp:build_resources(Resources)],
   case vertebra_cmd:run(Login, "/security/authorize", Inputs, Token, HeraultJid) of
     {ok, _From, Data} ->
+      io:format("Data: ~p~n", [Data]),
       case Data of
-  [{string, [{"name", "response"}], <<"notauthorized">>}] ->
-    {ok, false};
-  [{string, [{"name", "response"}], <<"authorized">>}] ->
-    {ok, true};
-  Error ->
-    Error
+        [{string, [{"name", "response"}], <<"notauthorized">>}] ->
+          {ok, false};
+        [{string, [{"name", "response"}], <<"authorized">>}] ->
+          {ok, true};
+        Error ->
+          Error
       end;
     Error ->
       Error
@@ -70,9 +71,9 @@ build_requestor(RequestorJid) when is_list(RequestorJid)->
 convert_login(Config) ->
   Token = uuid_server:generate_uuid(),
   [{resource, Token} | lists:filter(fun({Name, _Value}) ->
-          if
-            Name =:= resource ->
-              false;
-            true ->
-              true
-          end end, Config)].
+                                        if
+                                          Name =:= resource ->
+                                            false;
+                                          true ->
+                                            true
+                                        end end, Config)].

@@ -59,7 +59,8 @@ run(Config, Op, Inputs, Token, Target) ->
   run(Config, Op, Inputs, Token, Target, {pid, self()}),
   receive
     {xmpp_command_result, From, Data} ->
-      {ok, From, Data}
+      {ok, CD} = xml_util:convert(from, Data),
+      {ok, From, CD}
   after 10000 ->
       {error, timeout}
   end.
