@@ -3,6 +3,9 @@
 -behaviour(gen_server).
 
 -define(DEFAULT_TTL, 3600).
+-define(BAD_PACKET_TYPE_ERR, {xmlelement, "error", [{"code", "400"}], [{xmlcdata, <<"Only 'get' and 'set' packets are allowed">>}]}).
+-define(MISSING_VERT_ELEMENT_ERR, {xmlelement, "error", [{"code", "400"}], [{xmlcdata, <<"Missing required Vertebra element">>}]}).
+
 
 %% API
 -export([start_link/3, get_connection_info/1, send_fatal_error/4]).
@@ -96,14 +99,15 @@ handle_cast(stop, State) ->
 handle_cast(_Msg, State) ->
   {noreply, State}.
 
-handle_info({packet, {xmlelement, "iq", Attrs, SubEls}=Stanza}=Info, State) ->
+handle_info({packet, {xmlelement, "iq", Attrs, SubEls}}, State) ->
+  From = proplists:get_value("from", Attrs),
   case proplists:get_value("type", Attrs) of
     "result" ->
-      io:format("Skipping bad starting packet: ~p~n", [Stanza]);
+      natter_connection:send_iq(State#state.xmpp, "error", "", From, natter_parser:element_to_string(?BAD_PACKET_TYPE_ERR));
     _ ->
       case find_vertebra_element(SubEls) of
         undefined ->
-          io:format("Dropping packet: ~p~n", [Info]);
+          natter_connection:send_iq(State#state.xmpp, "error", "", From, natter_parser:element_to_string(?MISSING_VERT_ELEMENT_ERR));
         {xmlelement, _, OpAttrs, _} = Op ->
           From = proplists:get_value("from", Attrs),
           PacketId = proplists:get_value("id", Attrs),
