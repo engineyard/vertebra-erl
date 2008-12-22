@@ -1,5 +1,5 @@
 SUBDIRS = src tests
-EXTRA_DIST = include src tests
+EXTRA_DIST = include
 export app = vertebra
 
 dist-hook:
