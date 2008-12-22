@@ -5,9 +5,12 @@ vertebra_conf_DATA = conf/vertebractl.conf
 include vars.mk
 
 CLEANFILES = $(bin_SCRIPTS)
-EXTRA_DIST = src/vertebractl.in
+EXTRA_DIST = conf src
 
 export ERL_LIBS = $(abs_srcdir)/lib
+
+bin:
+	mkdir bin
 
 bin/vertebractl: bin src/vertebractl.in Makefile
 	$(do_subst) < $(srcdir)/src/vertebractl.in > $@
