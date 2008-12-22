@@ -3,6 +3,8 @@
 -behaviour(gen_server).
 
 -define(DEFAULT_TTL, 3600).
+
+-define(BAD_PACKET_ERR, {xmlelement, "error", [{"code", "501"}], [{xmlcdata, <<"Chat messages not supported">>}]}).
 -define(BAD_PACKET_TYPE_ERR, {xmlelement, "error", [{"code", "400"}], [{xmlcdata, <<"Only 'get' and 'set' packets are allowed">>}]}).
 -define(MISSING_VERT_ELEMENT_ERR, {xmlelement, "error", [{"code", "400"}], [{xmlcdata, <<"Missing required Vertebra element">>}]}).
 
@@ -116,6 +118,12 @@ handle_info({packet, {xmlelement, "iq", Attrs, SubEls}}, State) ->
           proc_lib:spawn(fun() -> dispatch(Me, State, From, PacketId, rotate_token(Token), Op) end)
       end
   end,
+  {noreply, State};
+
+handle_info({packet, {xmlelement, "message", Attrs, _}}, State) ->
+  From = proplists:get_value("from", Attrs),
+  Reply = {xmlelement, "message", [{"to", From}, {"type", "error"}], [?BAD_PACKET_ERR]},
+  natter_connection:raw_send(State#state.xmpp, natter_parser:element_to_string(Reply)),
   {noreply, State};
 
 handle_info(Info, State) ->
