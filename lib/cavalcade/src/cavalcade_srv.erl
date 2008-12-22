@@ -29,8 +29,7 @@
 
 start_link(ConfigFile) ->
   Config = load_config(ConfigFile),
-  ok = listing_store:init(),
-  ok = auth_store:init(Config),
+  ok = workflow_store:init(),
   gen_actor:start_link({local, ?MODULE}, Config, ?MODULE).
 
 advertised_resources() ->
@@ -41,7 +40,7 @@ is_secure(_) ->
 
 handle_op(_OpName, ServerPid, From, Token, OpTag) ->
   {ok, Pid} = cavalcade_worker:start_link(ServerPid, From, Token, OpTag),
-  herault_worker:kickstart(Pid).
+  cavalcade_worker:kickstart(Pid).
 
 %% Private functions
 load_config(ConfigFile) ->

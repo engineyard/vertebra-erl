@@ -80,7 +80,8 @@ handle_request("/workflow/store", State) ->
   case workflow_parser:parse_workflow(xml_util:unescape(Workflow)) of
     {ok, Workflows} ->
       ok = store_workflows(Workflows),
-      gen_actor:send_result(State#state.owner, State#state.from, State#state.token, ?OK);
+      {ok, OK} = xml_util:convert(to, ?OK),
+      gen_actor:send_result(State#state.owner, State#state.from, State#state.token, OK);
     {error, Reason} ->
       gen_actor:send_error(State#state.owner, State#state.from, State#state.token, Reason)
   end,
@@ -99,7 +100,7 @@ handle_request("/workflow/execute", State) ->
   end.
 
 store_workflows([H|T]) ->
-  ok = workflow_store:store_workflows(H),
+  ok = workflow_store:store_workflow(H),
   store_workflows(T);
 store_workflows([]) ->
   ok.

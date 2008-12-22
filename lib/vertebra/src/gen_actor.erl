@@ -147,9 +147,7 @@ rotate_token(Token) ->
   end.
 
 verify_permissions(Config, Herault, Caller, Resources) ->
-  R = vertebra_auth:verify(Config, Herault, Caller, Resources),
-  io:format("R: ~p~n", [R]),
-  case R of
+  case vertebra_auth:verify(Config, Herault, Caller, Resources) of
     {ok, Result} ->
       Result;
     _ ->
@@ -158,13 +156,13 @@ verify_permissions(Config, Herault, Caller, Resources) ->
 
 dispatch(ServerPid, ServerState, From, PacketId, Token, Op) ->
   #state{xmpp=Connection, xmpp_config=Config, cb_module=Mod} = ServerState,
-  {xmlelement, OpName, _, _} = Op,
+  {xmlelement, OpName, _, Children} = Op,
   CanContinue = case Mod:is_secure(OpName) of
                   true ->
                     verify_permissions(Config,
                                        proplists:get_value(herault, Config),
                                        From,
-                                       [OpName]);
+                                       [OpName|extract_resources(Children, [])]);
                   false ->
                     true
                 end,
@@ -205,3 +203,12 @@ start_advertiser(Config, {Resources}) ->
   gen_actor_advertiser:start_link(Config, Resources, ?DEFAULT_TTL);
 start_advertiser(Config, {TTL, Resources}) ->
   gen_actor_advertiser:start_link(Config, Resources, TTL).
+
+extract_resources([{xmlelement, "resource", _, [{xmlcdata, Resource}]}|T], Accum) ->
+  extract_resources(T, [binary_to_list(Resource)|Accum]);
+extract_resources([{xmlelement, "list", _, SubEls}|T], Accum) ->
+  extract_resources(T, extract_resources(SubEls, Accum));
+extract_resources([_|T], Accum) ->
+  extract_resources(T, Accum);
+extract_resources([], Accum) ->
+  lists:reverse(Accum).

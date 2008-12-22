@@ -50,7 +50,6 @@ verify(Config, HeraultJid, RequestorJid, Resources) ->
   Inputs = [build_requestor(RequestorJid) | vertebra_xmpp:build_resources(Resources)],
   case vertebra_cmd:run(Login, "/security/authorize", Inputs, Token, HeraultJid) of
     {ok, _From, Data} ->
-      io:format("Data: ~p~n", [Data]),
       case Data of
         [{string, [{"name", "response"}], <<"notauthorized">>}] ->
           {ok, false};
