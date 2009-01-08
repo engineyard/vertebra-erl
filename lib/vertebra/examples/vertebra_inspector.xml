@@ -1,0 +1,9 @@
+<rule-defs>
+  <named-rules>
+    <rule name="slownet">delay5-10</rule>
+  </named-rules>
+  <rules>
+    <rule id="all" rulename="slownet" />
+    <rule id="herault@localhost/herault" behavior="repeat1" />
+  </rules>
+</rule-defs>
