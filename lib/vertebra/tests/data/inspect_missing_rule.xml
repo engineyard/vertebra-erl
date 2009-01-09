@@ -1,5 +1,5 @@
 <rules xmlns="http://xmlschema.engineyard.com/agent/fuzz">
   <rule id="slownet" behavior="delay" min="5" max="10" />
-  <inspect id="catchall" stanza="all" rule="slownet" />
+  <inspect id="catchall" stanza="all" />
   <inspect id="authstutter" to="herault@localhost/herault" behavior="repeat" min="1" max="1" />
 </rules>
