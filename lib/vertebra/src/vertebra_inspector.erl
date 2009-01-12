@@ -45,6 +45,8 @@ init([ConfigFile, OwnerJid]) ->
               owner_jid=OwnerJid}}.
 
 handle_call({inspect_inbound, {xmlelement, "iq", _Attrs, _SubEls}}, _From, State) ->
+  %% Depending on what we do with annotations we can do this lookup once
+  %% when the inspector is started.
   case vertebra_inspector_config:find_rule(State#state.owner_jid, State#state.config) of
     {delay, Min, Max} ->
       {reply, {delay, random_interval(Min, Max)}};
