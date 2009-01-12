@@ -59,18 +59,9 @@ new_rule(Attrs) ->
 
 new_rule(Id, Min, Max, Percent, Behavior) when length(Id) > 0,
                                                length(Behavior) > 0 ->
-  io:format("Min: ~p, Max: ~p, Percent: ~p~n", [Min, Max, Percent]),
-  if
-    Min == 0 andalso Max == 0 ->
-      if
-        Percent == 0.0 ->
-          throw({error, bad_rule_def, Id});
-        true ->
-          {Id, #rule{id=Id, min=Min, max=Max, percent=Percent, behavior=Behavior}}
-      end;
-    true ->
-      {Id, #rule{id=Id, min=Min, max=Max, percent=Percent, behavior=Behavior}}
-  end;
+  F = fun() -> {Id, #rule{id=Id, min=Min, max=Max, percent=Percent, behavior=Behavior}} end,
+  EF = fun() -> throw({error, bad_rule_def, Id}) end,
+  validate_num_attrs({{Min, Max, F}, {Percent, F}, EF});
 
 new_rule(Id, _, _, _, _) ->
   throw({error, bad_rule_def, Id}).
@@ -91,17 +82,22 @@ new_inspection(Id, To, _, _, _, _, Rule) when length(Id) > 0,
 
 new_inspection(Id, To, Min, Max, Percent, Behavior, _) when length(Behavior) > 0,
                                                             length(Id) > 0 ->
+  F = fun() -> {Id, #inspection{id=Id, to=To, behavior=Behavior, min=Min, max=Max, percent=Percent}} end,
+  EF = fun() -> throw({error, bad_inspection_def, Id}) end,
+  validate_num_attrs({{Min, Max, F}, {Percent, F}, EF});
+
+new_inspection(Id, _, _, _, _, _, _) ->
+  throw({error, bad_inspection_def, Id}).
+
+validate_num_attrs({{Min, Max, MinMaxFun}, {Percent, PercentFun}, ErrorFun}) ->
   if
     Min == 0 andalso Max == 0 ->
       if
         Percent == 0.0 ->
-          throw({error, bad_inspection_def, Id});
+          ErrorFun();
         true ->
-          {Id, #inspection{id=Id, to=To, behavior=Behavior, min=Min, max=Max, percent=Percent}}
+          PercentFun()
       end;
     true ->
-      {Id, #inspection{id=Id, to=To, behavior=Behavior, min=Min, max=Max, percent=Percent}}
-  end;
-
-new_inspection(Id, _, _, _, _, _, _) ->
-  throw({error, bad_inspection_def, Id}).
+      MinMaxFun()
+  end.
