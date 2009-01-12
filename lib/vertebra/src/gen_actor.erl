@@ -70,7 +70,13 @@ stop(ServerPid) ->
   gen_server:cast(ServerPid, stop).
 
 init([Config, CallbackModule]) ->
-  {ok, Cn} = natter_connection:start_link(Config),
+  {ok, Cn} = case proplists:get_value(fuzzer, Config) of
+               undefined ->
+                 natter_connection:start_link(Config);
+               {InspectorMod, ConfigFile} ->
+                 {ok, InspectorPid} = InspectorMod:start_link(ConfigFile, vertebra_util:jid_from_config(Config)),
+                 natter_connection:start_link(Config, InspectorMod, InspectorPid)
+             end,
   natter_connection:register_default_exchange(Cn, self()),
   State = case proplists:get_value(herault, Config) of
             undefined ->

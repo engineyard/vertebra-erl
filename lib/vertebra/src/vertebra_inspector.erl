@@ -41,7 +41,8 @@ annotate_outbound_stanza(InspectorPid, Stanza) ->
   gen_server:call(InspectorPid, {annotate_outbound, Stanza}).
 
 init([ConfigFile, OwnerJid]) ->
-  {ok, #state{config=vertebra_inspector_config:read(ConfigFile),
+  {ok, Config} = vertebra_inspector_config:read(ConfigFile),
+  {ok, #state{config=Config,
               owner_jid=OwnerJid}}.
 
 handle_call({inspect_inbound, {xmlelement, "iq", _Attrs, _SubEls}}, _From, State) ->
@@ -49,7 +50,7 @@ handle_call({inspect_inbound, {xmlelement, "iq", _Attrs, _SubEls}}, _From, State
   %% when the inspector is started.
   case vertebra_inspector_config:find_rule(State#state.owner_jid, State#state.config) of
     {delay, Min, Max} ->
-      {reply, {delay, random_interval(Min, Max)}};
+      {reply, {delay, random_interval(Min, Max)}, State};
     _ ->
       {reply, route, State}
   end;
