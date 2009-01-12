@@ -15,14 +15,17 @@
 % You should have received a copy of the GNU Lesser General Public License
 % along with Vertebra.  If not, see <http://www.gnu.org/licenses/>.
 
--module(test_suite).
+-module(test_vertebra_util).
 
 -include_lib("eunit/include/eunit.hrl").
 
-all_test_() ->
-  [{module, test_xml_util},
-   {module, test_uuid},
-   {module, test_ops_builder},
-   {module, test_vertebra_xmpp},
-   {module, test_vertebra_inspector_config},
-   {module, test_vertebra_util}].
+-define(COMPLETE_CONFIG, [{host, "localhost"}, {user, "test"}, {resource, "test"}]).
+-define(MISSING_RESOURCE_CONFIG, [{host, "localhost"}, {user, "test"}]).
+-define(MISSING_USER_CONFIG, [{host, "localhost"}, {resource, "test"}]).
+-define(MISSING_HOST_CONFIG, [{user, "test"}]).
+
+jid_builder_test_() ->
+  [?_assertMatch("test@localhost/test", vertebra_util:jid_from_config(?COMPLETE_CONFIG)),
+   ?_assertMatch("test@localhost", vertebra_util:jid_from_config(?MISSING_RESOURCE_CONFIG)),
+   ?_assertMatch(error, vertebra_util:jid_from_config(?MISSING_USER_CONFIG)),
+   ?_assertMatch(error, vertebra_util:jid_from_config(?MISSING_HOST_CONFIG))].

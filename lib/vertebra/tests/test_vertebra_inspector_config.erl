@@ -21,13 +21,13 @@
 
 good_parse_test_() ->
   [?_assertMatch({ok,[{rules,[{"slownet",
-                               {rule,"slownet","delay","5","10",0.0}}]},
+                               {rule,"slownet",delay,5,10,0.0}}]},
                       {inspections,[{"authstutter",
                                       {inspection,"authstutter","all",undefined,
-                                       "herault@localhost/herault","repeat","1","1",
+                                       "herault@localhost/herault",repeat,1,1,
                                        0.0}},
                                     {"catchall",
-                                     {inspection,"catchall","all","slownet",undefined,undefined,
+                                     {inspection,"catchall","all","slownet","all",undefined,
                                       0,0,0.0}}]}]}, vertebra_inspector_config:read("data/good_inspector.xml")),
   ?_assertThrow({error, bad_rule_def, _}, vertebra_inspector_config:read("data/rule_missing_id.xml")),
   ?_assertThrow({error, bad_rule_def, _}, vertebra_inspector_config:read("data/rule_missing_min_max_percent.xml")),
@@ -36,3 +36,14 @@ good_parse_test_() ->
   ?_assertThrow({error, bad_inspection_def, _}, vertebra_inspector_config:read("data/inspect_missing_behavior.xml")),
   ?_assertThrow({error, bad_inspection_def, _}, vertebra_inspector_config:read("data/inspect_missing_rule.xml")),
   ?_assertThrow({error, bad_inspection_def, _}, vertebra_inspector_config:read("data/inspect_missing_min_max_percent.xml"))].
+
+find_rules_test_() ->
+  [fun() ->
+       {ok, Config} = vertebra_inspector_config:read("data/good_inspector.xml"),
+       {repeat, 1, 1} = vertebra_inspector_config:find_rule("herault@localhost/herault", Config) end,
+   fun() ->
+      {ok, Config} = vertebra_inspector_config:read("data/good_inspector.xml"),
+       {delay, 5, 10} = vertebra_inspector_config:find_rule("rd00-s0000@localhost/agent", Config) end,
+   fun() ->
+      {ok, Config} = vertebra_inspector_config:read("data/specific_inspector.xml"),
+       not_found = vertebra_inspector_config:find_rule("rd00-s0000@localhost/agent", Config) end].

@@ -21,7 +21,7 @@
 
 -include("vertebra_inspector.hrl").
 
--export([read/1]).
+-export([read/1, find_rule/2]).
 
 read(ConfigFileName) ->
   {ok, FileContents} = file:read_file(ConfigFileName),
@@ -29,7 +29,25 @@ read(ConfigFileName) ->
                                                                                          handle_event(Event, Acc) end),
   {ok, Config}.
 
+find_rule(Jid, [{rules, Rules}, {inspections, Inspections}]=Config) ->
+  case find_applicable_rule(Jid, Inspections, Rules) of
+    not_found ->
+      if
+        Jid =:= "all" ->
+          not_found;
+        true ->
+          find_rule("all", Config)
+      end;
+    Rule ->
+      Rule
+  end.
+
 %% Internal functions
+string_to_integer(undefined) ->
+  undefined;
+string_to_integer(Value) when is_list(Value) ->
+  list_to_integer(Value).
+
 handle_event({startElement, _, "rule", _, Attrs}, [{rules, Rules}, Inspections]) ->
   [{rules, [new_rule(Attrs)|Rules]}, Inspections];
 
@@ -59,7 +77,11 @@ new_rule(Attrs) ->
 
 new_rule(Id, Min, Max, Percent, Behavior) when length(Id) > 0,
                                                length(Behavior) > 0 ->
-  F = fun() -> {Id, #rule{id=Id, min=Min, max=Max, percent=Percent, behavior=Behavior}} end,
+  F = fun() -> {Id, #rule{id=Id,
+                          min=string_to_integer(Min),
+                          max=string_to_integer(Max),
+                          percent=Percent,
+                          behavior=list_to_atom(Behavior)}} end,
   EF = fun() -> throw({error, bad_rule_def, Id}) end,
   validate_num_attrs({{Min, Max, F}, {Percent, F}, EF});
 
@@ -82,7 +104,12 @@ new_inspection(Id, To, _, _, _, _, Rule) when length(Id) > 0,
 
 new_inspection(Id, To, Min, Max, Percent, Behavior, _) when length(Behavior) > 0,
                                                             length(Id) > 0 ->
-  F = fun() -> {Id, #inspection{id=Id, to=To, behavior=Behavior, min=Min, max=Max, percent=Percent}} end,
+  F = fun() -> {Id, #inspection{id=Id,
+                                to=To,
+                                behavior=list_to_atom(Behavior),
+                                min=string_to_integer(Min),
+                                max=string_to_integer(Max),
+                                percent=Percent}} end,
   EF = fun() -> throw({error, bad_inspection_def, Id}) end,
   validate_num_attrs({{Min, Max, F}, {Percent, F}, EF});
 
@@ -100,4 +127,42 @@ validate_num_attrs({{Min, Max, MinMaxFun}, {Percent, PercentFun}, ErrorFun}) ->
       end;
     true ->
       MinMaxFun()
+  end.
+
+find_applicable_rule(Jid, [{_, Inspection}|T], Rules) ->
+  case Inspection#inspection.to =:= Jid of
+    true ->
+      case Inspection#inspection.rule =:= undefined of
+        true ->
+          build_behavior_decl(Inspection);
+        false ->
+          find_named_rule(Inspection#inspection.rule, Rules)
+      end;
+    false ->
+      find_applicable_rule(Jid, T, Rules)
+  end;
+find_applicable_rule(_Jid, [], _Rules) ->
+  not_found.
+
+build_behavior_decl(Inspection) ->
+  case Inspection#inspection.min == 0 of
+    true ->
+      {Inspection#inspection.behavior, Inspection#inspection.percent};
+    false ->
+      {Inspection#inspection.behavior, Inspection#inspection.min, Inspection#inspection.max}
+  end.
+
+find_named_rule(RuleName, [{RuleName, Rule}|_]) ->
+  build_rule_decl(Rule);
+find_named_rule(RuleName, [_|T]) ->
+  find_named_rule(RuleName, T);
+find_named_rule(_RuleName, []) ->
+  not_found.
+
+build_rule_decl(Rule) ->
+  case Rule#rule.min == 0 of
+    true ->
+      {Rule#rule.behavior, Rule#rule.percent};
+    false ->
+      {Rule#rule.behavior, Rule#rule.min, Rule#rule.max}
   end.
