@@ -76,7 +76,7 @@ new_rule(Attrs) ->
   Id = find_attr("id", Attrs),
   Min = string_to_integer(find_attr("min", Attrs, "0")),
   Max = string_to_integer(find_attr("max", Attrs, "0")),
-  Percent = find_attr("percent", Attrs, 0.0),
+  Percent = string_to_float(find_attr("percent", Attrs, "0.0")),
   Behavior = find_attr("behavior", Attrs),
   Type = find_attr("type", Attrs, ""),
   new_rule(Id, Min, Max, Percent, Type, Behavior).

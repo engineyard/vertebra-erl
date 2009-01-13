@@ -1,5 +1,7 @@
 <rules xmlns="http://xmlschema.engineyard.com/agent/fuzz">
   <rule id="slownet" behavior="delay" min="5" max="10" />
+  <rule id="errnet" behavior="iq_error" percent="0.25" type="404" />
   <inspect id="catchall" to="all" rule="slownet" />
   <inspect id="authstutter" to="herault@localhost/herault" behavior="repeat" percent="0.5" />
+  <inspect id="error_fiesta" to="entrepot@localhost/entrepot" behavior="iq_error" type="500" percent="0.5" />
 </rules>

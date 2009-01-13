@@ -20,9 +20,12 @@
 -include_lib("eunit/include/eunit.hrl").
 
 good_parse_test_() ->
-  [?_assertMatch({ok,[{rules,[{"slownet",
-                               {rule,"slownet",delay,undefined,5,10,0.0}}]},
-                      {inspections,[{"authstutter",
+  [?_assertMatch({ok,[{rules,[{"errnet", {rule, "errnet",iq_error,404,0,0,0.25}},
+                               {"slownet",{rule,"slownet",delay,undefined,5,10,0.0}}]},
+                      {inspections,[{"error_fiesta",
+                                    {inspection,"error_fiesta","all",undefined,
+                                     "entrepot@localhost/entrepot",iq_error,500,0,0,0.5}},
+                                    {"authstutter",
                                      {inspection,"authstutter","all",undefined,
                                       "herault@localhost/herault",repeat,undefined,0,0,0.5}},
                                     {"catchall",
@@ -31,10 +34,12 @@ good_parse_test_() ->
   ?_assertThrow({error, bad_rule_def, _}, vertebra_inspector_config:read("data/rule_missing_id.xml")),
   ?_assertThrow({error, bad_rule_def, _}, vertebra_inspector_config:read("data/rule_missing_min_max_percent.xml")),
   ?_assertThrow({error, bad_rule_def, _}, vertebra_inspector_config:read("data/rule_missing_behavior.xml")),
+  ?_assertThrow({error, bad_rule_def, _}, vertebra_inspector_config:read("data/rule_missing_type.xml")),
   ?_assertThrow({error, bad_inspection_def, _}, vertebra_inspector_config:read("data/inspect_missing_id.xml")),
   ?_assertThrow({error, bad_inspection_def, _}, vertebra_inspector_config:read("data/inspect_missing_behavior.xml")),
   ?_assertThrow({error, bad_inspection_def, _}, vertebra_inspector_config:read("data/inspect_missing_rule.xml")),
-  ?_assertThrow({error, bad_inspection_def, _}, vertebra_inspector_config:read("data/inspect_missing_min_max_percent.xml"))].
+  ?_assertThrow({error, bad_inspection_def, _}, vertebra_inspector_config:read("data/inspect_missing_min_max_percent.xml")),
+  ?_assertThrow({error, bad_inspection_def, _}, vertebra_inspector_config:read("data/inspect_missing_type.xml"))].
 
 find_rules_test_() ->
   [fun() ->

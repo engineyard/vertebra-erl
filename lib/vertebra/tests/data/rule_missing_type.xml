@@ -1,0 +1,5 @@
+<rules xmlns="http://xmlschema.engineyard.com/agent/fuzz">
+  <rule id="errnet" behavior="iq_error" percent="0.25" />
+  <inspect id="catchall" stanza="all" rule="errnet" />
+  <inspect id="authstutter" to="herault@localhost/herault" behavior="repeat" percent="0.5" />
+</rules>
