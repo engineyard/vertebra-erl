@@ -21,14 +21,13 @@
 
 good_parse_test_() ->
   [?_assertMatch({ok,[{rules,[{"slownet",
-                               {rule,"slownet",delay,5,10,0.0}}]},
+                               {rule,"slownet",delay,undefined,5,10,0.0}}]},
                       {inspections,[{"authstutter",
-                                      {inspection,"authstutter","all",undefined,
-                                       "herault@localhost/herault",repeat,1,1,
-                                       0.0}},
+                                     {inspection,"authstutter","all",undefined,
+                                      "herault@localhost/herault",repeat,undefined,0,0,0.5}},
                                     {"catchall",
                                      {inspection,"catchall","all","slownet","all",undefined,
-                                      0,0,0.0}}]}]}, vertebra_inspector_config:read("data/good_inspector.xml")),
+                                      undefined,0,0,0.0}}]}]}, vertebra_inspector_config:read("data/good_inspector.xml")),
   ?_assertThrow({error, bad_rule_def, _}, vertebra_inspector_config:read("data/rule_missing_id.xml")),
   ?_assertThrow({error, bad_rule_def, _}, vertebra_inspector_config:read("data/rule_missing_min_max_percent.xml")),
   ?_assertThrow({error, bad_rule_def, _}, vertebra_inspector_config:read("data/rule_missing_behavior.xml")),
@@ -40,7 +39,7 @@ good_parse_test_() ->
 find_rules_test_() ->
   [fun() ->
        {ok, Config} = vertebra_inspector_config:read("data/good_inspector.xml"),
-       {repeat, 1, 1} = vertebra_inspector_config:find_rule("herault@localhost/herault", Config) end,
+       {repeat, 0.5} = vertebra_inspector_config:find_rule("herault@localhost/herault", Config) end,
    fun() ->
       {ok, Config} = vertebra_inspector_config:read("data/good_inspector.xml"),
        {delay, 5, 10} = vertebra_inspector_config:find_rule("rd00-s0000@localhost/agent", Config) end,

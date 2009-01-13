@@ -48,6 +48,11 @@ string_to_integer(undefined) ->
 string_to_integer(Value) when is_list(Value) ->
   list_to_integer(Value).
 
+string_to_float(undefined) ->
+  undefined;
+string_to_float(Value) when is_list(Value) ->
+  list_to_float(Value).
+
 handle_event({startElement, _, "rule", _, Attrs}, [{rules, Rules}, Inspections]) ->
   [{rules, [new_rule(Attrs)|Rules]}, Inspections];
 
@@ -69,65 +74,92 @@ find_attr(_, [], Default) ->
 
 new_rule(Attrs) ->
   Id = find_attr("id", Attrs),
-  Min = find_attr("min", Attrs, 0),
-  Max = find_attr("max", Attrs, 0),
+  Min = string_to_integer(find_attr("min", Attrs, "0")),
+  Max = string_to_integer(find_attr("max", Attrs, "0")),
   Percent = find_attr("percent", Attrs, 0.0),
   Behavior = find_attr("behavior", Attrs),
-  new_rule(Id, Min, Max, Percent, Behavior).
+  Type = find_attr("type", Attrs, ""),
+  new_rule(Id, Min, Max, Percent, Type, Behavior).
 
-new_rule(Id, Min, Max, Percent, Behavior) when length(Id) > 0,
-                                               length(Behavior) > 0 ->
-  F = fun() -> {Id, #rule{id=Id,
-                          min=string_to_integer(Min),
-                          max=string_to_integer(Max),
-                          percent=Percent,
-                          behavior=list_to_atom(Behavior)}} end,
-  EF = fun() -> throw({error, bad_rule_def, Id}) end,
-  validate_num_attrs({{Min, Max, F}, {Percent, F}, EF});
+new_rule(Id, Min, Max, _Percent, _Type, "delay") when length(Id) > 0,
+                                                      Min > 0,
+                                                      Max > 0 ->
+  {Id, #rule{id=Id,
+             min=Min,
+             max=Max,
+             behavior=delay}};
 
-new_rule(Id, _, _, _, _) ->
+new_rule(Id, _Min, _Max, Percent, _Type, "drop") when length(Id) > 0,
+                                                      Percent > 0.0 ->
+  {Id, #rule{id=Id,
+             behavior=drop,
+             percent=Percent}};
+
+new_rule(Id, _Min, _Max, Percent, Type, "iq_error") when length(Id) > 0,
+                                                         Percent > 0.0,
+                                                         length(Type) > 0 ->
+  {Id, #rule{id=Id,
+             behavior=iq_error,
+             type=string_to_integer(Type),
+             percent=Percent}};
+
+new_rule(Id, _, _, _, _, _) ->
   throw({error, bad_rule_def, Id}).
 
 new_inspection(Attrs) ->
   Id = find_attr("id", Attrs),
   To = find_attr("to", Attrs, undefined),
-  Min = find_attr("min", Attrs, 0),
-  Max = find_attr("max", Attrs, 0),
-  Percent = find_attr("percent", Attrs, 0.0),
+  Min = string_to_integer(find_attr("min", Attrs, "0")),
+  Max = string_to_integer(find_attr("max", Attrs, "0")),
+  Percent = string_to_float(find_attr("percent", Attrs, "0.0")),
   Behavior = find_attr("behavior", Attrs),
+  Type = find_attr("type", Attrs, ""),
   Rule = find_attr("rule", Attrs),
-  new_inspection(Id, To, Min, Max, Percent, Behavior, Rule).
+  new_inspection(Id, To, Min, Max, Percent, Type, Behavior, Rule).
 
-new_inspection(Id, To, _, _, _, _, Rule) when length(Id) > 0,
-                                              length(Rule) > 0 ->
+new_inspection(Id, To, _, _, _, _, _, Rule) when length(Id) > 0,
+                                                 length(Rule) > 0 ->
   {Id, #inspection{id=Id, to=To, rule=Rule}};
 
-new_inspection(Id, To, Min, Max, Percent, Behavior, _) when length(Behavior) > 0,
-                                                            length(Id) > 0 ->
-  F = fun() -> {Id, #inspection{id=Id,
-                                to=To,
-                                behavior=list_to_atom(Behavior),
-                                min=string_to_integer(Min),
-                                max=string_to_integer(Max),
-                                percent=Percent}} end,
-  EF = fun() -> throw({error, bad_inspection_def, Id}) end,
-  validate_num_attrs({{Min, Max, F}, {Percent, F}, EF});
+new_inspection(Id, To, Min, Max, _Percent, _Type, "delay", _Rule) when length(Id) > 0,
+                                                                       length(To) > 0,
+                                                                       Min > 0,
+                                                                       Max > 0 ->
+  {Id, #inspection{id=Id,
+                   to=To,
+                   behavior=delay,
+                   min=Min,
+                   max=Max}};
 
-new_inspection(Id, _, _, _, _, _, _) ->
+new_inspection(Id, To, _Min, _Max, Percent, _Type, "drop", _Rule) when length(Id) > 0,
+                                                                       length(To) > 0,
+                                                                       Percent > 0.0 ->
+  {Id, #inspection{id=Id,
+                   to=To,
+                   behavior=drop,
+                   percent=Percent}};
+
+new_inspection(Id, To, _Min, _Max, Percent, _Type, "repeat", _Rule) when length(Id) > 0,
+                                                                       length(To) > 0,
+                                                                       Percent > 0.0 ->
+  {Id, #inspection{id=Id,
+                   to=To,
+                   behavior=repeat,
+                   percent=Percent}};
+
+
+new_inspection(Id, To, _Min, _Max, Percent, Type, "iq_error", _Rule) when length(Id) > 0,
+                                                                          length(To) > 0,
+                                                                          length(Type) > 0,
+                                                                          Percent > 0.0 ->
+  {Id, #inspection{id=Id,
+                   to=To,
+                   behavior=iq_error,
+                   type=string_to_integer(Type),
+                   percent=Percent}};
+
+new_inspection(Id, _, _, _, _, _, _, _) ->
   throw({error, bad_inspection_def, Id}).
-
-validate_num_attrs({{Min, Max, MinMaxFun}, {Percent, PercentFun}, ErrorFun}) ->
-  if
-    Min == 0 andalso Max == 0 ->
-      if
-        Percent == 0.0 ->
-          ErrorFun();
-        true ->
-          PercentFun()
-      end;
-    true ->
-      MinMaxFun()
-  end.
 
 find_applicable_rule(Jid, [{_, Inspection}|T], Rules) ->
   case Inspection#inspection.to =:= Jid of

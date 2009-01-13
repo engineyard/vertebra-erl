@@ -45,12 +45,12 @@ init([ConfigFile, OwnerJid]) ->
   {ok, #state{config=Config,
               owner_jid=OwnerJid}}.
 
-handle_call({inspect_inbound, {xmlelement, "iq", _Attrs, _SubEls}}, _From, State) ->
+handle_call({inspect_inbound, {xmlelement, "iq", _Attrs, _SubEls}=Stanza}, _From, State) ->
   %% Depending on what we do with annotations we can do this lookup once
   %% when the inspector is started.
   case vertebra_inspector_config:find_rule(State#state.owner_jid, State#state.config) of
     {delay, Min, Max} ->
-      {reply, {delay, random_interval(Min, Max)}, State};
+      {reply, {delay, random_integer(Min, Max)}, State};
     _ ->
       {reply, route, State}
   end;
@@ -101,7 +101,7 @@ code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
 %% Internal functions
-random_interval(Min, Max) ->
+random_integer(Min, Max) ->
   {T1, T2, T3} = erlang:now(),
   random:seed(T1, T2, T3),
   erlang:round(((Max - Min + 1) * random:uniform()) + Min).
