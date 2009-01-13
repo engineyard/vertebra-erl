@@ -103,6 +103,14 @@ new_rule(Id, _Min, _Max, Percent, Type, "iq_error") when length(Id) > 0,
              type=string_to_integer(Type),
              percent=Percent}};
 
+new_rule(Id, _Min, _Max, Percent, Type, "vert_error") when length(Id) > 0,
+                                                           Percent > 0.0,
+                                                           length(Type) > 0 ->
+  {Id, #rule{id=Id,
+             behavior=vert_error,
+             type=Type,
+             percent=Percent}};
+
 new_rule(Id, _, _, _, _, _) ->
   throw({error, bad_rule_def, Id}).
 
@@ -156,6 +164,16 @@ new_inspection(Id, To, _Min, _Max, Percent, Type, "iq_error", _Rule) when length
                    to=To,
                    behavior=iq_error,
                    type=string_to_integer(Type),
+                   percent=Percent}};
+
+new_inspection(Id, To, _Min, _Max, Percent, Type, "vert_error", _Rule) when length(Id) > 0,
+                                                                            length(To) > 0,
+                                                                            length(Type) > 0,
+                                                                            Percent > 0.0 ->
+  {Id, #inspection{id=Id,
+                   to=To,
+                   behavior=vert_error,
+                   type=Type,
                    percent=Percent}};
 
 new_inspection(Id, _, _, _, _, _, _, _) ->

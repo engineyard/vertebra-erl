@@ -22,7 +22,10 @@
 good_parse_test_() ->
   [?_assertMatch({ok,[{rules,[{"errnet", {rule, "errnet",iq_error,404,0,0,0.25}},
                                {"slownet",{rule,"slownet",delay,undefined,5,10,0.0}}]},
-                      {inspections,[{"error_fiesta",
+                      {inspections,[{"vert_fail",
+                                    {inspection,"vert_fail","all",undefined,"all",vert_error,
+                                     "WTF",0,0,0.1}},
+                                    {"error_fiesta",
                                     {inspection,"error_fiesta","all",undefined,
                                      "entrepot@localhost/entrepot",iq_error,500,0,0,0.5}},
                                     {"authstutter",
@@ -47,7 +50,7 @@ find_rules_test_() ->
        {repeat, 0.5} = vertebra_inspector_config:find_rule("herault@localhost/herault", Config) end,
    fun() ->
       {ok, Config} = vertebra_inspector_config:read("data/good_inspector.xml"),
-       {delay, 5, 10} = vertebra_inspector_config:find_rule("rd00-s0000@localhost/agent", Config) end,
+       {vert_error, 0.1} = vertebra_inspector_config:find_rule("rd00-s0000@localhost/agent", Config) end,
    fun() ->
       {ok, Config} = vertebra_inspector_config:read("data/specific_inspector.xml"),
        not_found = vertebra_inspector_config:find_rule("rd00-s0000@localhost/agent", Config) end].
