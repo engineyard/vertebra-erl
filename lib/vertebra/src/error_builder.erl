@@ -19,26 +19,42 @@
 
 -author("ksmith@engineyard.com").
 
--export([iq_error/3]).
+-export([iq_error/3, vert_error/4]).
 
 -include("xml.hrl").
 
 -define(DEFAULT_ATTRS, [{"xmlns", "urn:ietf:params:xml:ns:xmpp-stanzas"}]).
 -define(ERROR_TYPES, [{400, [#xmlelement{name="bad-request",
-                                         attrs=?DEFAULT_ATTRS},
+                                         attrs=?DEFAULT_ATTRS,
+                                         sub_el=[]},
                              "modify"]},
                       {403, [#xmlelement{name="forbidden",
-                                         attrs=?DEFAULT_ATTRS},
+                                         attrs=?DEFAULT_ATTRS,
+                                         sub_el=[]},
                              "auth"]},
                       {404, [#xmlelement{name="recipient-unavailable",
-                                         attrs=?DEFAULT_ATTRS},
+                                         attrs=?DEFAULT_ATTRS,
+                                         sub_el=[]},
                              "wait"]},
                       {500, [#xmlelement{name="undefined-condition",
-                                         attrs=?DEFAULT_ATTRS},
+                                         attrs=?DEFAULT_ATTRS,
+                                         sub_el=[]},
                              "cancel"]},
                       {503, [#xmlelement{name="service-unavailable",
-                                         attrs=?DEFAULT_ATTRS},
+                                         attrs=?DEFAULT_ATTRS,
+                                         sub_el=[]},
                              "cancel"]}].
+
+vert_error(Message, {From, Id, StanzaType}, Token, To) ->
+  VertError = ops_builder:error_op(Message, Token),
+  IQ = ops_builder:finalize(VertError, StanzaType, Id),
+  NewIQ = case From of
+            undefined ->
+              IQ;
+            _ ->
+              IQ#xmlelement{attrs=[{"from", From}|IQ#xmlelement.attrs]}
+          end,
+  NewIQ#xmlelement{attrs=[{"to", To}|IQ#xmlelement.attrs]}.
 
 iq_error(Code, From, To) ->
   case proplists:get_value(Code, ?ERROR_TYPES) of

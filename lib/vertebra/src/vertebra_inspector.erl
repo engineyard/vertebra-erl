@@ -48,9 +48,17 @@ init([ConfigFile, OwnerJid]) ->
 handle_call({inspect_inbound, {xmlelement, "iq", _Attrs, _SubEls}=Stanza}, _From, State) ->
   %% Depending on what we do with annotations we can do this lookup once
   %% when the inspector is started.
-  case vertebra_inspector_config:find_rule(State#state.owner_jid, State#state.config) of
-    {delay, Min, Max} ->
+  Rule = vertebra_inspector_config:find_rule(State#state.owner_jid, State#state.config),
+  case Rule of
+    {delay, _, Min, Max} ->
       {reply, {delay, random_integer(Min, Max)}, State};
+    {iq_error, ErrorType, Threshold} ->
+      case random_threshold(Threshold) of
+        true ->
+          {reply, {replace, generate_iq_error(State#state.owner_jid, Stanza, ErrorType)}, State};
+        false ->
+          {reply, route, State}
+      end;
     _ ->
       {reply, route, State}
   end;
@@ -105,3 +113,12 @@ random_integer(Min, Max) ->
   {T1, T2, T3} = erlang:now(),
   random:seed(T1, T2, T3),
   erlang:round(((Max - Min + 1) * random:uniform()) + Min).
+
+random_threshold(Threshold) when is_float(Threshold) ->
+  {T1, T2, T3} = erlang:now(),
+  random:seed(T1, T2, T3),
+  random:uniform() =< Threshold.
+
+generate_iq_error(To, {xmlelement, "iq", Attrs, _}, ErrCode) ->
+  From = proplists:get_value("from", Attrs),
+  error_builder:iq_error(ErrCode, From, To).

@@ -47,10 +47,10 @@ good_parse_test_() ->
 find_rules_test_() ->
   [fun() ->
        {ok, Config} = vertebra_inspector_config:read("data/good_inspector.xml"),
-       {repeat, 0.5} = vertebra_inspector_config:find_rule("herault@localhost/herault", Config) end,
+       {repeat, undefined, 0.5} = vertebra_inspector_config:find_rule("herault@localhost/herault", Config) end,
    fun() ->
       {ok, Config} = vertebra_inspector_config:read("data/good_inspector.xml"),
-       {vert_error, 0.1} = vertebra_inspector_config:find_rule("rd00-s0000@localhost/agent", Config) end,
+       {vert_error, "WTF", 0.1} = vertebra_inspector_config:find_rule("rd00-s0000@localhost/agent", Config) end,
    fun() ->
       {ok, Config} = vertebra_inspector_config:read("data/specific_inspector.xml"),
        not_found = vertebra_inspector_config:find_rule("rd00-s0000@localhost/agent", Config) end].

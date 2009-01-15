@@ -197,9 +197,9 @@ find_applicable_rule(_Jid, [], _Rules) ->
 build_behavior_decl(Inspection) ->
   case Inspection#inspection.min == 0 of
     true ->
-      {Inspection#inspection.behavior, Inspection#inspection.percent};
+      {Inspection#inspection.behavior, Inspection#inspection.type, Inspection#inspection.percent};
     false ->
-      {Inspection#inspection.behavior, Inspection#inspection.min, Inspection#inspection.max}
+      {Inspection#inspection.behavior, Inspection#inspection.type, Inspection#inspection.min, Inspection#inspection.max}
   end.
 
 find_named_rule(RuleName, [{RuleName, Rule}|_]) ->
@@ -212,7 +212,7 @@ find_named_rule(_RuleName, []) ->
 build_rule_decl(Rule) ->
   case Rule#rule.min == 0 of
     true ->
-      {Rule#rule.behavior, Rule#rule.percent};
+      {Rule#rule.behavior, Rule#rule.type, Rule#rule.percent};
     false ->
-      {Rule#rule.behavior, Rule#rule.min, Rule#rule.max}
+      {Rule#rule.behavior, Rule#rule.type, Rule#rule.min, Rule#rule.max}
   end.
