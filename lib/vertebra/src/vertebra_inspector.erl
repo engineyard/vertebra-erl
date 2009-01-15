@@ -59,6 +59,13 @@ handle_call({inspect_inbound, {xmlelement, "iq", _Attrs, _SubEls}=Stanza}, _From
         false ->
           {reply, route, State}
       end;
+    {vert_error, ErrorMessage, Threshold} ->
+      case random_threshold(Threshold) of
+        true ->
+          {reply, {replace, generate_vert_error(State#state.owner_jid, Stanza, ErrorMessage)}, State};
+        false ->
+          {reply, route, State}
+      end;
     _ ->
       {reply, route, State}
   end;
@@ -122,3 +129,10 @@ random_threshold(Threshold) when is_float(Threshold) ->
 generate_iq_error(To, {xmlelement, "iq", Attrs, _}, ErrCode) ->
   From = proplists:get_value("from", Attrs),
   error_builder:iq_error(ErrCode, From, To).
+
+generate_vert_error(To, {xmlelement, "iq", Attrs, [{xmlelement, _, VertAttrs, _}]}, Message) ->
+  From = proplists:get_value("from", Attrs),
+  Id = list_to_integer(proplists:get_value("id", Attrs, "0")),
+  Type = proplists:get_value("type", Attrs),
+  Token = proplists:get_value("token", VertAttrs),
+  error_builder:vert_error(Message, {From, Id, Type}, Token, To).
