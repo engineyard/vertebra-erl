@@ -102,7 +102,7 @@ init([Config, CallbackModule]) ->
               {ok, P} = start_advertiser(Config, CallbackModule:advertised_resources()),
               #state{xmpp=Cn, cb_module=CallbackModule, xmpp_config=Config, advertiser=P}
           end,
-  {ok, State}.
+  {ok, State#state{tracker_pid=vertebra_tracker:start_link(Cn)}}.
 
 handle_call(get_xmpp_connection_info, _From, State) ->
   {reply, State#state.xmpp, State};
@@ -129,7 +129,8 @@ handle_info({packet, {xmlelement, "iq", Attrs, SubEls}}, State) ->
   case proplists:get_value("type", Attrs) of
     "result" ->
       natter_connection:send_iq(State#state.xmpp, "error", "", From, natter_parser:element_to_string(?BAD_PACKET_TYPE_ERR));
-    _ ->
+    Type when Type =:= "get";
+              Type =:= "set" ->
       case find_vertebra_element(SubEls) of
         undefined ->
           natter_connection:send_iq(State#state.xmpp, "error", "", From, natter_parser:element_to_string(?MISSING_VERT_ELEMENT_ERR));
@@ -139,7 +140,11 @@ handle_info({packet, {xmlelement, "iq", Attrs, SubEls}}, State) ->
           Token = proplists:get_value("token", OpAttrs),
           Me = self(),
           proc_lib:spawn(fun() -> dispatch(Me, State, From, PacketId, rotate_token(Token), Op) end)
-      end
+      end;
+    _ ->
+      From = proplists:get_value("from", Attrs),
+      Reply = {xmlelement, "message", [{"to", From}, {"type", "error"}], [?BAD_PACKET_ERR]},
+      natter_connection:raw_send(State#state.xmpp, natter_parser:element_to_string(Reply))
   end,
   {noreply, State};
 
