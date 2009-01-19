@@ -26,4 +26,5 @@ all_test_() ->
    {module, test_vertebra_xmpp},
    {module, test_vertebra_inspector_config},
    {module, test_vertebra_util},
-   {module, test_error_builder}].
+   {module, test_error_builder},
+   {module, test_vertebra_tracker}].

@@ -14,6 +14,7 @@
 %
 % You should have received a copy of the GNU Lesser General Public License
 % along with Vertebra.  If not, see <http://www.gnu.org/licenses/>.
+
 -module(vertebra_tracker).
 
 -author("ksmith@engineyard.com").
@@ -21,7 +22,8 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/1, target_status/2, target_status/3]).
+-export([start_link/0, start_link/1, get_status/2, set_status/3, buffer_stanza/3]).
+-export([reset/1, get_buffered_stanza/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -34,43 +36,76 @@
 -record(target,
         {jid,
          status,
-         messages=[]}).
+         pending}).
 
-target_status(TrackerPid, TargetJid) ->
+reset(TrackerPid) ->
+  gen_server:call(TrackerPid, reset).
+
+get_status(TrackerPid, TargetJid) ->
   gen_server:call(TrackerPid, {get_status, TargetJid}).
 
-target_status(TrackerPid, TargetJid, Status) ->
+set_status(TrackerPid, TargetJid, Status) when Status =:= offline;
+                                               Status =:= online ->
   gen_server:call(TrackerPid, {set_status, TargetJid, Status}).
 
 buffer_stanza(TrackerPid, TargetJid, Stanza) ->
-  gen_server:call(TrackerPid, {buffer_stanza, Stanza}).
+  gen_server:call(TrackerPid, {buffer_stanza, TargetJid, Stanza}).
+
+%% Meant for unit testing only
+get_buffered_stanza(TrackerPid, TargetJid) ->
+  gen_server:call(TrackerPid, {get_stanza, TargetJid}).
+
+start_link() ->
+  gen_server:start_link(?MODULE, [], []).
 
 start_link(Connection) ->
   gen_server:start_link(?MODULE, [Connection], []).
 
+init([]) ->
+  {ok, #state{}};
+
 init([Connection]) ->
   {ok, #state{cn=Connection}}.
 
+handle_call({get_stanza, TargetJid}, _From, State) ->
+  Reply = case find_target(TargetJid, false, State) of
+            not_found ->
+              not_found;
+            Target ->
+              case Target#target.pending =:= undefined of
+                true ->
+                  not_buffered;
+                false ->
+                  Target#target.pending
+              end
+          end,
+  {reply, Reply, State};
 
-%%--------------------------------------------------------------------
-%% Function: %% handle_call(Request, From, State) -> {reply, Reply, State} |
-%%                                      {reply, Reply, State, Timeout} |
-%%                                      {noreply, State} |
-%%                                      {noreply, State, Timeout} |
-%%                                      {stop, Reason, Reply, State} |
-%%                                      {stop, Reason, State}
-%% Description: Handling call messages
-%%--------------------------------------------------------------------
 handle_call({get_status, TargetJid}, _From, State) ->
-  case dict:find(TargetJid, State#state.targets) of
-    error ->
+  case find_target(TargetJid, false, State) of
+    not_found ->
       {reply, online, State};
-    {ok, Target} ->
-      {reply, Target#target.status}
+    Target ->
+      {reply, Target#target.status, State}
   end;
 
+handle_call(reset, _From, State) ->
+  {reply, ok, #state{cn=State#state.cn}};
+
 handle_call({set_status, TargetJid, online}, _From, State) ->
-  {reply, {error, not_implemented}, State};
+  NewState = case find_target(TargetJid, false, State) of
+               not_found ->
+                 State;
+               Target ->
+                 if
+                   Target#target.pending =:= undefined->
+                     ok;
+                   true ->
+                     send_pending(State#state.cn, Target#target.pending)
+                 end,
+                 State#state{targets=dict:erase(TargetJid, State#state.targets)}
+             end,
+  {reply, ok, NewState};
 
 handle_call({set_status, TargetJid, Status}, _From, State) ->
   Target = (find_target(TargetJid, State))#target{status=Status},
@@ -78,53 +113,47 @@ handle_call({set_status, TargetJid, Status}, _From, State) ->
 
 handle_call({buffer_stanza, TargetJid, Stanza}, _From, State) ->
   Target = find_target(TargetJid, State),
-  FinalTarget = Target#target{messages=lists:reverse([Stanza|Target#target.messages])},
-  {reply, ok, State#state{targets=dict:store(TargetJid, FinalTarget, State#state.targets)}};
+  if
+    Target#target.pending =:= undefined ->
+      FinalTarget = Target#target{pending=Stanza, status=offline},
+      {reply, ok, State#state{targets=dict:store(TargetJid, FinalTarget, State#state.targets)}};
+    true ->
+      {reply, {error, already_buffered}, State}
+  end;
 
 handle_call(_Request, _From, State) ->
   Reply = ok,
   {reply, Reply, State}.
 
-%%--------------------------------------------------------------------
-%% Function: handle_cast(Msg, State) -> {noreply, State} |
-%%                                      {noreply, State, Timeout} |
-%%                                      {stop, Reason, State}
-%% Description: Handling cast messages
-%%--------------------------------------------------------------------
 handle_cast(_Msg, State) ->
   {noreply, State}.
 
-%%--------------------------------------------------------------------
-%% Function: handle_info(Info, State) -> {noreply, State} |
-%%                                       {noreply, State, Timeout} |
-%%                                       {stop, Reason, State}
-%% Description: Handling all non call/cast messages
-%%--------------------------------------------------------------------
 handle_info(_Info, State) ->
   {noreply, State}.
 
-%%--------------------------------------------------------------------
-%% Function: terminate(Reason, State) -> void()
-%% Description: This function is called by a gen_server when it is about to
-%% terminate. It should be the opposite of Module:init/1 and do any necessary
-%% cleaning up. When it returns, the gen_server terminates with Reason.
-%% The return value is ignored.
-%%--------------------------------------------------------------------
 terminate(_Reason, _State) ->
   ok.
 
-%%--------------------------------------------------------------------
-%% Func: code_change(OldVsn, State, Extra) -> {ok, NewState}
-%% Description: Convert process state when code is changed
-%%--------------------------------------------------------------------
 code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
 %% Internal functions
 find_target(TargetJid, State) ->
+  find_target(TargetJid, true, State).
+find_target(TargetJid, CreateNew, State) ->
   case dict:find(TargetJid, State#state.targets) of
     error ->
-      #target{jid=TargetJid};
+      if
+        CreateNew =:= true ->
+          #target{jid=TargetJid};
+        true ->
+          not_found
+      end;
     {ok, Target} ->
       Target
   end.
+
+send_pending(undefined, _) ->
+  ok;
+send_pending(Cn, Pending) ->
+  natter_connection:raw_send(Cn, Pending).
