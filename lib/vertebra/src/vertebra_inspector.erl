@@ -41,6 +41,8 @@ annotate_outbound_stanza(InspectorPid, Stanza) ->
   gen_server:call(InspectorPid, {annotate_outbound, Stanza}).
 
 init([ConfigFile, OwnerJid]) ->
+  {T1, T2, T3} = erlang:now(),
+  random:seed(T1, T2, T3),
   {ok, Config} = vertebra_inspector_config:read(ConfigFile),
   {ok, #state{config=Config,
               owner_jid=OwnerJid}}.
@@ -117,8 +119,6 @@ code_change(_OldVsn, State, _Extra) ->
 
 %% Internal functions
 random_integer(Min, Max) ->
-  {T1, T2, T3} = erlang:now(),
-  random:seed(T1, T2, T3),
   erlang:round(((Max - Min + 1) * random:uniform()) + Min).
 
 random_threshold(Threshold) when is_float(Threshold) ->

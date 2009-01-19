@@ -61,21 +61,75 @@ start_link(NameScope, Config, CallbackModule) when is_tuple(NameScope),
 get_connection_info(ServerPid) ->
   gen_server:call(ServerPid, get_xmpp_connection_info).
 
+%% TODO: Fix retry handling in send_* functions to interface
+%% with liveness checking
+
 send_fatal_error(ServerPid, To, Token, Error) ->
-  XMPP= get_connection_info(ServerPid),
-  vertebra_xmpp:send_wait_set(XMPP, {}, To, op_builder:error_op("fatal", Error, Token)).
+  XMPP = get_connection_info(ServerPid),
+  case vertebra_xmpp:send_wait_set(XMPP, {}, To, op_builder:error_op("fatal", Error, Token)) of
+    {ok, Reply} ->
+      case handle_reply(Reply) of
+        ok ->
+          Reply;
+        retry ->
+          send_fatal_error(ServerPid, To, Token, Error);
+        cancel ->
+          {error, {abort, Reply}}
+      end;
+    Error ->
+      Error
+  end.
+
 
 send_error(ServerPid, To, Token, Error) ->
-  XMPP= get_connection_info(ServerPid),
-  vertebra_xmpp:send_wait_set(XMPP, {}, To, ops_builder:error_op(Error, Token)).
+  XMPP = get_connection_info(ServerPid),
+  case vertebra_xmpp:send_wait_set(XMPP, {}, To, ops_builder:error_op(Error, Token)) of
+    {ok, Reply} ->
+      case handle_reply(Reply) of
+        ok ->
+          Reply;
+        retry ->
+          send_error(ServerPid, To, Token, Error);
+        cancel ->
+          {error, {abort, Reply}}
+      end;
+    Error ->
+      Error
+  end.
+
 
 send_result(ServerPid, To, Token, Result) ->
-  XMPP= get_connection_info(ServerPid),
-  vertebra_xmpp:send_wait_set(XMPP, {}, To, ops_builder:result_op(Result, Token)).
+  XMPP = get_connection_info(ServerPid),
+  case vertebra_xmpp:send_wait_set(XMPP, {}, To, ops_builder:result_op(Result, Token)) of
+    {ok, Reply} ->
+      case handle_reply(Reply) of
+        ok ->
+          Reply;
+        retry ->
+          send_result(ServerPid, To, Token, Result);
+        cancel ->
+          {error, {abort, Reply}}
+      end;
+    Error ->
+      Error
+  end.
 
 end_result(ServerPid, To, Token) ->
-  XMPP= get_connection_info(ServerPid),
-  vertebra_xmpp:send_wait_set(XMPP, {}, To, ops_builder:final_op(Token)).
+  XMPP = get_connection_info(ServerPid),
+  case vertebra_xmpp:send_wait_set(XMPP, {}, To, ops_builder:final_op(Token)) of
+    {ok, Reply} ->
+      case handle_reply(Reply) of
+        ok ->
+          Reply;
+        retry ->
+          end_result(ServerPid, To, Token);
+        cancel ->
+          {error, {abort, Reply}}
+      end;
+    Error ->
+      Error
+  end.
+
 
 add_resources(ServerPid, Resources) ->
   gen_server:call(ServerPid, {add_resources, Resources}).
@@ -240,3 +294,12 @@ extract_resources([_|T], Accum) ->
   extract_resources(T, Accum);
 extract_resources([], Accum) ->
   lists:reverse(Accum).
+
+handle_reply(Reply) ->
+  case vertebra_error_policy:analyze(Reply) of
+    wait ->
+      timer:sleep(15000),
+      retry;
+    Result ->
+      Result
+  end.
