@@ -63,7 +63,6 @@ get_connection_info(ServerPid) ->
 
 %% TODO: Fix retry handling in send_* functions to interface
 %% with liveness checking
-
 send_fatal_error(ServerPid, To, Token, Error) ->
   XMPP = get_connection_info(ServerPid),
   case vertebra_xmpp:send_wait_set(XMPP, {}, To, op_builder:error_op("fatal", Error, Token)) of

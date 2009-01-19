@@ -114,16 +114,29 @@ handle_cast({execute, Client}, State) ->
 handle_cast(_Msg, State) ->
   {noreply, State}.
 
-handle_info({packet, {xmlelement, "iq", Attrs, [{xmlelement, "final", _, _}=Final]}}, State) ->
+handle_info({packet, {xmlelement, "iq", Attrs, [{xmlelement, "final", _, _}=Stanza]}}, State) ->
   From = proplists:get_value("from", Attrs),
   vertebra_xmpp:send_result(State#state.connection,
                                 ?ERROR_TRACKING_DISABLED,
                                 proplists:get_value("id", Attrs),
                                 From,
-                                Final),
+                                Stanza),
   #state{client={pid, ClientRef}} = State,
   ClientRef ! {xmpp_command_result, From, lists:flatten(State#state.results)},
   {stop, normal, State};
+
+handle_info({packet, {xmlelement, "iq", Attrs, [{xmlelement, "error", _, [Reason]}=Stanza]}}, State) ->
+  From = proplists:get_value("from", Attrs),
+  vertebra_xmpp:send_result(State#state.connection,
+                                ?ERROR_TRACKING_DISABLED,
+                                proplists:get_value("id", Attrs),
+                                From,
+                                Stanza),
+  #state{client={pid, ClientRef}} = State,
+  {ok, {string, ReasonDesc}} = xml_util:convert(from, Reason),
+  ClientRef ! {xmpp_command_result, From, {error, ReasonDesc}},
+  {stop, normal, State};
+
 
 handle_info({packet, {xmlelement, "iq", Attrs, [{xmlelement, "result", _, Results}=Result]}}, State) ->
     vertebra_xmpp:send_result(State#state.connection,
