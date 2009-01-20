@@ -75,6 +75,13 @@
                           {"id","100"}],
                          [{xmlelement,"ping",[{"xmlns","urn:xmpp:ping"}],[]}]}).
 
+-define(TEST_STANZA, {xmlelement, "iq", [{"from", "rd00-s0000@localhost/agent"},
+                                          {"to", "foo@localhost"},
+                                          {"id", "100"},
+                                          {"type", "set"}], [{xmlelement, "op", [{"token", "abc:def"},
+                                                                               {"type", "/security/verify"}], []}]}).
+
+
 
 
 iq_errors_test_() ->
@@ -83,3 +90,10 @@ iq_errors_test_() ->
    ?_assertMatch(cancel, vertebra_error_policy:analyze(?ERR_500)),
    ?_assertMatch(cancel, vertebra_error_policy:analyze(?ERR_400)),
    ?_assertMatch(cancel, vertebra_error_policy:analyze(?ERR_INCOMPLETE))].
+
+inspector_integration_test_() ->
+  [fun() ->
+       {ok, P} = vertebra_inspector:start_link("data/integration_inspector.xml", "herault@localhost/herault"),
+       {replace, Replacement} = vertebra_inspector:inspect_inbound_stanza(P, ?TEST_STANZA),
+       file:write_file("/tmp/test.txt", io_lib:format("~p~n", [Replacement])),
+       ?assertMatch(wait, vertebra_error_policy:analyze(Replacement)) end].

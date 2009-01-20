@@ -1,0 +1,3 @@
+<rules xmlns="http://xmlschema.engineyard.com/agent/fuzz">
+  <inspect id="unavailable" to="all" behavior="iq_error" percent="1.0" type="503" />
+</rules>

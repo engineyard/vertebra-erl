@@ -297,7 +297,7 @@ extract_resources([], Accum) ->
 handle_reply(Reply) ->
   case vertebra_error_policy:analyze(Reply) of
     wait ->
-      timer:sleep(15000),
+      timer:sleep(500),
       retry;
     Result ->
       Result
