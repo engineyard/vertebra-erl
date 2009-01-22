@@ -29,3 +29,6 @@ jid_builder_test_() ->
    ?_assertMatch("test@localhost", vertebra_util:jid_from_config(?MISSING_RESOURCE_CONFIG)),
    ?_assertMatch(error, vertebra_util:jid_from_config(?MISSING_USER_CONFIG)),
    ?_assertMatch(error, vertebra_util:jid_from_config(?MISSING_HOST_CONFIG))].
+
+checksum_test_() ->
+  [?_assertMatch("5d41402abc4b2a76b9719d911017c592", vertebra_util:md5("hello"))].

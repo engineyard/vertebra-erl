@@ -24,7 +24,7 @@ analyze({xmlelement, "iq", Attrs, Subels}) ->
     "error" ->
       analyze_iq_error(Subels);
     _ ->
-      analyze_vertebra_stanza(Attrs, Subels)
+      analyze_vertebra_stanza(Subels)
   end.
 
 %% Internal functions
@@ -47,7 +47,7 @@ analyze_iq_error(Subels) ->
       end
   end.
 
-analyze_vertebra_stanza(Attrs, Subels) ->
+analyze_vertebra_stanza(Subels) ->
   case find_error_element(Subels) of
     not_found ->
       ok;
@@ -66,7 +66,7 @@ extract_iq_error_data({xmlelement, "error", Attrs, Subels}) when length(Subels) 
               end,
   {Code, Severity, ErrorType}.
 
-find_error_element([{xmlelement, "error", _, _}=H|T]) ->
+find_error_element([{xmlelement, "error", _, _}=H|_T]) ->
   H;
 find_error_element([_|T]) ->
   find_error_element(T);

@@ -30,6 +30,7 @@
 -export([start_link/3, get_connection_info/1, send_fatal_error/4]).
 -export([send_error/4, send_result/4, end_result/3]).
 -export([add_resources/2, remove_resources/2, stop/1]).
+-export([is_duplicate/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -43,7 +44,8 @@
          xmpp_config,
          cb_module,
          tracker_pid,
-         advertiser}).
+         advertiser,
+         packet_fingerprints=[]}).
 
 %%====================================================================
 %% API
@@ -58,6 +60,9 @@ start_link(NameScope, Config, CallbackModule) when is_tuple(NameScope),
                                                    is_atom(CallbackModule) ->
   gen_server:start_link(NameScope, ?MODULE, [Config, CallbackModule], []).
 
+is_duplicate(ServerPid, Stanza) ->
+  gen_server:call(ServerPid, {is_duplicate, Stanza}).
+
 get_connection_info(ServerPid) ->
   gen_server:call(ServerPid, get_xmpp_connection_info).
 
@@ -67,11 +72,13 @@ send_fatal_error(ServerPid, To, Token, Error) ->
   XMPP = get_connection_info(ServerPid),
   case vertebra_xmpp:send_wait_set(XMPP, {}, To, op_builder:error_op("fatal", Error, Token)) of
     {ok, Reply} ->
-      case handle_reply(Reply) of
+      case handle_reply(ServerPid, Reply) of
         ok ->
           Reply;
         retry ->
           send_fatal_error(ServerPid, To, Token, Error);
+        {duplicate, Hash} ->
+          {error, {duplicate, Hash}};
         cancel ->
           {error, {abort, Reply}}
       end;
@@ -84,11 +91,13 @@ send_error(ServerPid, To, Token, Error) ->
   XMPP = get_connection_info(ServerPid),
   case vertebra_xmpp:send_wait_set(XMPP, {}, To, ops_builder:error_op(Error, Token)) of
     {ok, Reply} ->
-      case handle_reply(Reply) of
+      case handle_reply(ServerPid, Reply) of
         ok ->
           Reply;
         retry ->
           send_error(ServerPid, To, Token, Error);
+        {duplicate, Hash} ->
+          {error, {duplicate, Hash}};
         cancel ->
           {error, {abort, Reply}}
       end;
@@ -101,11 +110,13 @@ send_result(ServerPid, To, Token, Result) ->
   XMPP = get_connection_info(ServerPid),
   case vertebra_xmpp:send_wait_set(XMPP, {}, To, ops_builder:result_op(Result, Token)) of
     {ok, Reply} ->
-      case handle_reply(Reply) of
+      case handle_reply(ServerPid, Reply) of
         ok ->
           Reply;
         retry ->
           send_result(ServerPid, To, Token, Result);
+        {duplicate, Hash} ->
+          {error, {duplicate, Hash}};
         cancel ->
           {error, {abort, Reply}}
       end;
@@ -117,11 +128,13 @@ end_result(ServerPid, To, Token) ->
   XMPP = get_connection_info(ServerPid),
   case vertebra_xmpp:send_wait_set(XMPP, {}, To, ops_builder:final_op(Token)) of
     {ok, Reply} ->
-      case handle_reply(Reply) of
+      case handle_reply(ServerPid, Reply) of
         ok ->
           Reply;
         retry ->
           end_result(ServerPid, To, Token);
+        {duplicate, Hash} ->
+          {error, {duplicate, Hash}};
         cancel ->
           {error, {abort, Reply}}
       end;
@@ -168,6 +181,12 @@ handle_call({add_resources, Resources}, _From, State) ->
   gen_actor_advertiser:add_resources(State#state.advertiser, Resources),
   {reply, ok, State};
 
+handle_call({is_duplicate, Stanza}, _From, State) ->
+  Text = natter_parser:element_to_string(Stanza),
+  CS = vertebra_util:md5(Text),
+  {Result, NewState} = find_duplicate(CS, State#state.packet_fingerprints, State),
+  {reply, Result, NewState};
+
 handle_call(_Msg, _From, State) ->
   {reply, ignored, State}.
 
@@ -177,29 +196,35 @@ handle_cast(stop, State) ->
 handle_cast(_Msg, State) ->
   {noreply, State}.
 
-handle_info({packet, {xmlelement, "iq", Attrs, SubEls}}, State) ->
-  From = proplists:get_value("from", Attrs),
-  case proplists:get_value("type", Attrs) of
-    "result" ->
-      natter_connection:send_iq(State#state.xmpp, "error", "", From, natter_parser:element_to_string(?BAD_PACKET_TYPE_ERR));
-    Type when Type =:= "get";
-              Type =:= "set" ->
-      case find_vertebra_element(SubEls) of
-        undefined ->
-          natter_connection:send_iq(State#state.xmpp, "error", "", From, natter_parser:element_to_string(?MISSING_VERT_ELEMENT_ERR));
-        {xmlelement, _, OpAttrs, _} = Op ->
-          From = proplists:get_value("from", Attrs),
-          PacketId = proplists:get_value("id", Attrs),
-          Token = proplists:get_value("token", OpAttrs),
-          Me = self(),
-          proc_lib:spawn(fun() -> dispatch(Me, State, From, PacketId, rotate_token(Token), Op) end)
-      end;
-    _ ->
+handle_info({packet, {xmlelement, "iq", Attrs, SubEls}=Stanza}, State) ->
+  StanzaFingerprint = build_fingerprint(Stanza),
+  case find_duplicate(StanzaFingerprint, State#state.packet_fingerprints, State) of
+    {true, State} ->
+      {noreply, State};
+    {false, NewState} ->
       From = proplists:get_value("from", Attrs),
-      Reply = {xmlelement, "message", [{"to", From}, {"type", "error"}], [?BAD_PACKET_ERR]},
-      natter_connection:raw_send(State#state.xmpp, natter_parser:element_to_string(Reply))
-  end,
-  {noreply, State};
+      case proplists:get_value("type", Attrs) of
+        "result" ->
+          natter_connection:send_iq(State#state.xmpp, "error", "", From, natter_parser:element_to_string(?BAD_PACKET_TYPE_ERR));
+        Type when Type =:= "get";
+                  Type =:= "set" ->
+          case find_vertebra_element(SubEls) of
+            undefined ->
+              natter_connection:send_iq(State#state.xmpp, "error", "", From, natter_parser:element_to_string(?MISSING_VERT_ELEMENT_ERR));
+            {xmlelement, _, OpAttrs, _} = Op ->
+              From = proplists:get_value("from", Attrs),
+              PacketId = proplists:get_value("id", Attrs),
+              Token = proplists:get_value("token", OpAttrs),
+              Me = self(),
+              proc_lib:spawn(fun() -> dispatch(Me, State, From, PacketId, rotate_token(Token), Op) end)
+          end;
+        _ ->
+          From = proplists:get_value("from", Attrs),
+          Reply = {xmlelement, "message", [{"to", From}, {"type", "error"}], [?BAD_PACKET_ERR]},
+          natter_connection:raw_send(State#state.xmpp, natter_parser:element_to_string(Reply))
+      end,
+      {noreply, NewState}
+  end;
 
 handle_info({packet, {xmlelement, "message", Attrs, _}}, State) ->
   From = proplists:get_value("from", Attrs),
@@ -294,11 +319,28 @@ extract_resources([_|T], Accum) ->
 extract_resources([], Accum) ->
   lists:reverse(Accum).
 
-handle_reply(Reply) ->
-  case vertebra_error_policy:analyze(Reply) of
-    wait ->
-      timer:sleep(500),
-      retry;
-    Result ->
-      Result
+handle_reply(ServerPid, Reply) ->
+  case gen_actor:is_duplicate(ServerPid, Reply) of
+    {true, Hash} ->
+      {duplicate, Hash};
+    false ->
+      case vertebra_error_policy:analyze(Reply) of
+        wait ->
+          timer:sleep(500),
+          retry;
+        Result ->
+          Result
+      end
   end.
+
+build_fingerprint({xmlelement, _, Attrs, _}) ->
+  From = proplists:get_value("from", Attrs),
+  Id = proplists:get_value("id", Attrs),
+  {From, Id}.
+
+find_duplicate(Fingerprint, [Fingerprint|_T], State) ->
+  {true, State};
+find_duplicate(Fingerprint, [_|T], State) ->
+  find_duplicate(Fingerprint, T, State);
+find_duplicate(Fingerprint, [], State) ->
+  {false, State#state{packet_fingerprints=[Fingerprint|State#state.packet_fingerprints]}}.

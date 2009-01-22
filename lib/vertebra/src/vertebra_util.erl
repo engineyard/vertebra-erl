@@ -17,12 +17,16 @@
 
 -module(vertebra_util).
 
--export([jid_from_config/1]).
+-export([jid_from_config/1, md5/1]).
 
 -define(JID_ATTRS, [user, host, resource]).
 
 jid_from_config(XMPPConfig) ->
   lists:foldl(fun(Attr, Acc) -> resolve_attr(Attr, XMPPConfig, Acc) end, "", ?JID_ATTRS).
+
+md5(Text) when is_list(Text) ->
+  Checksum = binary_to_list(erlang:md5(Text)),
+  lists:flatten([io_lib:format("~.16b", [X]) || X <- Checksum]).
 
 %% Internal functions
 resolve_attr(_, _, error) ->
