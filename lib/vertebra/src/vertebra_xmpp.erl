@@ -19,6 +19,7 @@
 
 -define(MAX_PACKET_ID, 1000000).
 -define(ILLEGAL_REPLY_ERR, {xmlelement, "error", [{"code", "406"}], [{xmlcdata, <<"Packet type not acceptable reply">>}]}).
+-define(SEND_TIMEOUT, 60000).
 
 -export([confirm_op/7, get_named_arg/2, get_token/1]).
 -export([send_set/4, send_wait_set/4, send_result/5]).
@@ -34,7 +35,7 @@ send_wait_set(XMPP, TrackInfo, To, Body) when is_tuple(TrackInfo), is_tuple(Body
   send_wait_set(XMPP, TrackInfo, To, natter_parser:element_to_string(Body));
 
 send_wait_set(XMPP, TrackInfo, To, Body) when is_tuple(TrackInfo), is_list(Body) ->
-  Result = natter_connection:send_wait_iq(XMPP, "set", new_packet_id(), To, Body),
+  Result = natter_connection:send_wait_iq(XMPP, "set", new_packet_id(), To, Body, ?SEND_TIMEOUT),
   case Result of
     %% Client sync error?
     {error, {illegal_xmpp_reply, _}} ->
