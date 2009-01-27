@@ -105,11 +105,23 @@ handle_call(_Request, _From, State) ->
   {reply, ignored, State}.
 
 handle_cast({execute, Client}, State) ->
+  Me = self(),
   Op = ops_builder:generic_op({State#state.op,
                                string:join(State#state.start_token, ":"),
                                State#state.inputs}),
-  vertebra_xmpp:send_set(State#state.connection, ?ERROR_TRACKING_DISABLED, State#state.target, Op),
-  {noreply, State#state{client=Client}};
+  case vertebra_xmpp:send_wait_set(State#state.connection, ?ERROR_TRACKING_DISABLED, State#state.target, Op) of
+    {ok, Reply} ->
+      case handle_reply(Reply) of
+        retry ->
+          %% Restart execute process since we got a wait error
+          spawn(fun() -> vertebra_cmd:execute(Me, Client) end);
+        ok ->
+          Me ! {packet, Reply}
+      end,
+      {noreply, State#state{client=Client}};
+    Error ->
+      {stop, Error, State}
+  end;
 
 handle_cast(_Msg, State) ->
   {noreply, State}.
@@ -173,3 +185,11 @@ code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
 %% Internal functions
+handle_reply(Reply) ->
+  case vertebra_error_policy:analyze(Reply) of
+    wait ->
+      timer:sleep(random:uniform(5000)),
+      retry;
+    Result ->
+      Result
+  end.

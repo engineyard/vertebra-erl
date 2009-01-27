@@ -14,7 +14,6 @@
 %
 % You should have received a copy of the GNU Lesser General Public License
 % along with Vertebra.  If not, see <http://www.gnu.org/licenses/>.
-
 -module(gen_actor_advertiser).
 
 -behaviour(gen_server).
@@ -32,7 +31,8 @@
         {xmpp_config,
          resources,
          advertise_interval,
-         advertisement_timer}).
+         advertisement_timer,
+         is_advertising=false}).
 
 start_link(Config, Resources, AdvertiseInterval) ->
   gen_server:start_link(?MODULE, [Config, Resources, AdvertiseInterval], []).
@@ -49,7 +49,7 @@ readvertise(AdvertiserPid) ->
 stop(AdvertiserPid) ->
   gen_server:cast(AdvertiserPid, stop).
 
-init([Config, Resources, AdvertiseInterval]) when length(Resources) == 0 ->
+init([Config, [], AdvertiseInterval]) ->
   process_flag(trap_exit, true),
   {ok, #state{
      xmpp_config=Config,
@@ -57,7 +57,6 @@ init([Config, Resources, AdvertiseInterval]) when length(Resources) == 0 ->
      advertisement_timer=set_timer(AdvertiseInterval)}};
 
 init([Config, Resources, AdvertiseInterval]) ->
-  io:format("Resources advertised. Starting resource advertiser...~n"),
   process_flag(trap_exit, true),
   vertebra_advertiser:advertise(Config, Resources, AdvertiseInterval + ?FUDGE_FACTOR),
   {ok, #state{
@@ -71,14 +70,12 @@ handle_call(_Request, _From, State) ->
   {reply, Reply, State}.
 
 handle_cast(stop, State) ->
-  io:format("Resource advertiser stopping...~n"),
   vertebra_advertiser:advertise(State#state.xmpp_config, [], 0),
   {stop, normal, State};
 
 handle_cast(readvertise, State) ->
-  vertebra_advertiser:advertise(State#state.xmpp_config,
-                       [],
-                       State#state.advertise_interval + ?FUDGE_FACTOR),
+  vertebra_advertiser:advertise(State#state.xmpp_config, [],
+                                State#state.advertise_interval + ?FUDGE_FACTOR),
   {noreply, State};
 
 handle_cast({add, Resources}, State) ->
