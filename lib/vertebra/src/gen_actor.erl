@@ -232,7 +232,7 @@ handle_info({packet, {xmlelement, "message", Attrs, _}}, State) ->
   natter_connection:raw_send(State#state.xmpp, natter_parser:element_to_string(Reply)),
   {noreply, State};
 
-handle_info(Info, State) ->
+handle_info(_Info, State) ->
   {noreply, State}.
 
 terminate(_Reason, _State) ->
