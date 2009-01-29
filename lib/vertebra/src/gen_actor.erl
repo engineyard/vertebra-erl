@@ -233,7 +233,6 @@ handle_info({packet, {xmlelement, "message", Attrs, _}}, State) ->
   {noreply, State};
 
 handle_info(Info, State) ->
-  io:format("Dropping packet: ~p~n", [Info]),
   {noreply, State}.
 
 terminate(_Reason, _State) ->
