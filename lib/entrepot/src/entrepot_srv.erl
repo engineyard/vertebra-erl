@@ -52,25 +52,37 @@ handle_op("/entrepot/store", ServerPid, From, Token, Op) ->
   Key = decode_key(Key0),
   {atomic, ok} = entrepot_store:store(Key, Value),
   advertise(ServerPid, Key),
-  result_callback(#item{key=Key, value=Value}, ServerPid, From, Token),
-  gen_actor:end_result(ServerPid, From, Token);
+  case result_callback(#item{key=Key, value=Value}, ServerPid, From, Token) of
+    {error, {abort, _}} ->
+      ok;
+    _ ->
+      gen_actor:end_result(ServerPid, From, Token)
+  end;
 
 handle_op("/entrepot/delete", ServerPid, From, Token, Op) ->
   {xmlelement, _Name, _Attrs, SubEls} = Op,
   {ok, [Key0]} = xml_util:convert(from, SubEls),
   Key = decode_key(Key0),
-  {atomic, ok} = entrepot_store:delete(Key, {?MODULE, result_callback,
-                                             [ServerPid, From, Token]}),
-  unadvertise(ServerPid, Key),
-  gen_actor:end_result(ServerPid, From, Token);
+  case entrepot_store:delete(Key, {?MODULE, result_callback,
+                                   [ServerPid, From, Token]}) of
+    {atomic, ok} ->
+      unadvertise(ServerPid, Key),
+      gen_actor:end_result(ServerPid, From, Token);
+    _ ->
+      ok
+  end;
 
 handle_op("/entrepot/fetch", ServerPid, From, Token, Op) ->
   {xmlelement, _Name, _Attrs, SubEls} = Op,
   {ok, [Key0]} = xml_util:convert(from, SubEls),
   Key = decode_key(Key0),
-  {atomic, ok} = entrepot_store:fetch(Key, {?MODULE, result_callback,
-                                            [ServerPid, From, Token]}),
-  gen_actor:end_result(ServerPid, From, Token).
+  case entrepot_store:fetch(Key, {?MODULE, result_callback,
+                                  [ServerPid, From, Token]}) of
+    {atomic, ok} ->
+      gen_actor:end_result(ServerPid, From, Token);
+    _ ->
+      ok
+  end.
 
 %%--------------------------------------------------------------------
 %% Internal functions

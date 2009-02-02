@@ -103,15 +103,25 @@ proper_subset_query(Key, Callback) ->
 proper_subset_query(_Key, '$end_of_table', _Callback) ->
   ok;
 proper_subset_query(Key, Current, Callback) ->
-  case catch is_proper_subset(Key, Current) of
+  Continue = case catch is_proper_subset(Key, Current) of
+               true ->
+                 [Record] = mnesia:read({?TABLE, Current}),
+                 case callback_with_record(Record, Callback) of
+                   {error, {abort, _}} ->
+                     false;
+                   _ ->
+                     true
+                 end;
+               _ ->
+                 true
+             end,
+  if
+    Continue =:= true ->
+      Next = mnesia:next(?TABLE, Current),
+      proper_subset_query(Key, Next, Callback);
     true ->
-      [Record] = mnesia:read({?TABLE, Current}),
-      callback_with_record(Record, Callback);
-    _ ->
-      ignore
-  end,
-  Next = mnesia:next(?TABLE, Current),
-  proper_subset_query(Key, Next, Callback).
+      {error, abort}
+  end.
 
 return_results(Pid) ->
   Pid ! {return, self()},

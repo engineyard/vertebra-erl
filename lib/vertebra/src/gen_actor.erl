@@ -77,8 +77,8 @@ send_fatal_error(ServerPid, To, Token, Error) ->
           Reply;
         retry ->
           send_fatal_error(ServerPid, To, Token, Error);
-        {duplicate, Hash} ->
-          {error, {duplicate, Hash}};
+        duplicate ->
+          {error, duplicate};
         cancel ->
           {error, {abort, Reply}}
       end;
@@ -96,8 +96,8 @@ send_error(ServerPid, To, Token, Error) ->
           Reply;
         retry ->
           send_error(ServerPid, To, Token, Error);
-        {duplicate, Hash} ->
-          {error, {duplicate, Hash}};
+        duplicate ->
+          {error, duplicate};
         cancel ->
           {error, {abort, Reply}}
       end;
@@ -115,8 +115,8 @@ send_result(ServerPid, To, Token, Result) ->
           Reply;
         retry ->
           send_result(ServerPid, To, Token, Result);
-        {duplicate, Hash} ->
-          {error, {duplicate, Hash}};
+        duplicate ->
+          {error, duplicate};
         cancel ->
           {error, {abort, Reply}}
       end;
@@ -133,8 +133,8 @@ end_result(ServerPid, To, Token) ->
           Reply;
         retry ->
           end_result(ServerPid, To, Token);
-        {duplicate, Hash} ->
-          {error, {duplicate, Hash}};
+        duplicate ->
+          {error, duplicate};
         cancel ->
           {error, {abort, Reply}}
       end;
@@ -320,8 +320,8 @@ extract_resources([], Accum) ->
 
 handle_reply(ServerPid, Reply) ->
   case gen_actor:is_duplicate(ServerPid, Reply) of
-    {true, Hash} ->
-      {duplicate, Hash};
+    true ->
+      duplicate;
     false ->
       case vertebra_error_policy:analyze(Reply) of
         wait ->
