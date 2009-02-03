@@ -78,7 +78,12 @@ send_fatal_error(ServerPid, To, Token, Error) ->
         retry ->
           send_fatal_error(ServerPid, To, Token, Error);
         duplicate ->
-          {error, duplicate};
+          case clear_duplicate(ServerPid, To, Token, Reply) of
+            true ->
+              send_fatal_error(ServerPid, To, Token, Error);
+            false ->
+              {error, {abort, duplicate}}
+          end;
         cancel ->
           {error, {abort, Reply}}
       end;
@@ -343,3 +348,12 @@ find_duplicate(Fingerprint, [_|T], State) ->
   find_duplicate(Fingerprint, T, State);
 find_duplicate(Fingerprint, [], State) ->
   {false, State#state{packet_fingerprints=[Fingerprint|State#state.packet_fingerprints]}}.
+
+%% START HERE
+clear_duplicate(ServerPid, To, Token, {xmlelement, "iq", Attrs, _SubEls}) ->
+  case proplists:get_value("type", Attrs) of
+    "set" ->
+      true;
+    "result" ->
+      true
+  end.

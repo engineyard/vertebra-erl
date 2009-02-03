@@ -68,6 +68,13 @@ handle_call({inspect_inbound, {xmlelement, "iq", _Attrs, _SubEls}=Stanza}, _From
         false ->
           {reply, route, State}
       end;
+    {repeat, _, Threshold} ->
+      case random_threshold(Threshold) of
+        true ->
+          {reply, {repeat, random_integer(1, 10)}, State};
+        false ->
+          {reply, route, State}
+      end;
     _ ->
       {reply, route, State}
   end;
@@ -82,38 +89,15 @@ handle_call(_Request, _From, State) ->
   Reply = ok,
   {reply, Reply, State}.
 
-%%--------------------------------------------------------------------
-%% Function: handle_cast(Msg, State) -> {noreply, State} |
-%%                                      {noreply, State, Timeout} |
-%%                                      {stop, Reason, State}
-%% Description: Handling cast messages
-%%--------------------------------------------------------------------
 handle_cast(_Msg, State) ->
   {noreply, State}.
 
-%%--------------------------------------------------------------------
-%% Function: handle_info(Info, State) -> {noreply, State} |
-%%                                       {noreply, State, Timeout} |
-%%                                       {stop, Reason, State}
-%% Description: Handling all non call/cast messages
-%%--------------------------------------------------------------------
 handle_info(_Info, State) ->
   {noreply, State}.
 
-%%--------------------------------------------------------------------
-%% Function: terminate(Reason, State) -> void()
-%% Description: This function is called by a gen_server when it is about to
-%% terminate. It should be the opposite of Module:init/1 and do any necessary
-%% cleaning up. When it returns, the gen_server terminates with Reason.
-%% The return value is ignored.
-%%--------------------------------------------------------------------
 terminate(_Reason, _State) ->
   ok.
 
-%%--------------------------------------------------------------------
-%% Func: code_change(OldVsn, State, Extra) -> {ok, NewState}
-%% Description: Convert process state when code is changed
-%%--------------------------------------------------------------------
 code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
@@ -124,7 +108,9 @@ random_integer(Min, Max) ->
 random_threshold(Threshold) when is_float(Threshold) ->
   {T1, T2, T3} = erlang:now(),
   random:seed(T1, T2, T3),
-  random:uniform() =< Threshold.
+  T = random:uniform(),
+  io:format("Random value: ~p~n", [T]),
+  T =< Threshold.
 
 generate_iq_error(To, {xmlelement, "iq", Attrs, _}, ErrCode) ->
   From = proplists:get_value("from", Attrs),
