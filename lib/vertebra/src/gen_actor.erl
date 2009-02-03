@@ -21,8 +21,8 @@
 
 -define(DEFAULT_TTL, 3600).
 
--define(BAD_PACKET_ERR, {xmlelement, "error", [{"code", "501"}], [{xmlcdata, <<"Chat messages not supported">>}]}).
--define(BAD_PACKET_TYPE_ERR, {xmlelement, "error", [{"code", "400"}], [{xmlcdata, <<"Only 'get' and 'set' packets are allowed">>}]}).
+-define(BAD_PACKET_ERR, {xmlelement, "error", [{"code", "406"},
+                                               {"type", "modify"}], [{xmlcdata, "not-acceptable", [{"xmlns", "urn:ietf:params:xml:ns:xmpp-stanzas"}], []}]}).
 -define(MISSING_VERT_ELEMENT_ERR, {xmlelement, "error", [{"code", "400"}], [{xmlcdata, <<"Missing required Vertebra element">>}]}).
 
 
@@ -72,25 +72,25 @@ send_fatal_error(ServerPid, To, Token, Error) ->
   XMPP = get_connection_info(ServerPid),
   ErrStanza = ops_builder:error_op("fatal", Error, Token),
   RetryFun = fun() -> vertebra_xmpp:send_wait_set(XMPP, {}, To, ErrStanza) end,
-  transmit(ServerPid, XMPP, {RetryFun, To, Token}).
+  transmit(ServerPid, XMPP, {RetryFun, To}).
 
 send_error(ServerPid, To, Token, Error) ->
   XMPP = get_connection_info(ServerPid),
   ErrStanza = ops_builder:error_op(Error, Token),
   RetryFun = fun() -> vertebra_xmpp:send_wait_set(XMPP, {}, To, ErrStanza) end,
-  transmit(ServerPid, XMPP, {RetryFun, To, Token}).
+  transmit(ServerPid, XMPP, {RetryFun, To}).
 
 send_result(ServerPid, To, Token, Result) ->
   XMPP = get_connection_info(ServerPid),
   ResultStanza = ops_builder:result_op(Result, Token),
   RetryFun = fun() -> vertebra_xmpp:send_wait_set(XMPP, {}, To, ResultStanza) end,
-  transmit(ServerPid, XMPP, {RetryFun, To, Token}).
+  transmit(ServerPid, XMPP, {RetryFun, To}).
 
 end_result(ServerPid, To, Token) ->
   XMPP = get_connection_info(ServerPid),
   Final = ops_builder:final_op(Token),
   RetryFun = fun() -> vertebra_xmpp:send_wait_set(XMPP, {}, To, Final) end,
-  transmit(ServerPid, XMPP, {RetryFun, To, Token}).
+  transmit(ServerPid, XMPP, {RetryFun, To}).
 
 add_resources(ServerPid, Resources) ->
   gen_server:call(ServerPid, {add_resources, Resources}).
@@ -154,7 +154,7 @@ handle_info({packet, {xmlelement, "iq", Attrs, SubEls}=Stanza}, State) ->
       From = proplists:get_value("from", Attrs),
       case proplists:get_value("type", Attrs) of
         "result" ->
-          natter_connection:send_iq(State#state.xmpp, "error", "", From, natter_parser:element_to_string(?BAD_PACKET_TYPE_ERR));
+          natter_connection:send_iq(State#state.xmpp, "error", "", From, natter_parser:element_to_string(?BAD_PACKET_ERR));
         Type when Type =:= "get";
                   Type =:= "set" ->
           case find_vertebra_element(SubEls) of
@@ -191,7 +191,7 @@ code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
 %% Internal functions
-transmit(ServerPid, XMPP, {XmitFun, To, Token}=Xmitter) ->
+transmit(ServerPid, XMPP, {XmitFun, To}=Xmitter) ->
   case XmitFun() of
     {ok, Reply} ->
       case handle_reply(ServerPid, Reply) of
@@ -200,7 +200,7 @@ transmit(ServerPid, XMPP, {XmitFun, To, Token}=Xmitter) ->
         retry ->
           transmit(ServerPid, XMPP, Xmitter);
         duplicate ->
-          case clear_duplicate(ServerPid, To, Token, Reply) of
+          case clear_duplicate(ServerPid, To, Reply) of
             true ->
               transmit(ServerPid, XMPP, Xmitter);
             false ->
@@ -317,10 +317,7 @@ find_duplicate(Fingerprint, [], State) ->
   {false, State#state{packet_fingerprints=[Fingerprint|State#state.packet_fingerprints]}}.
 
 %% START HERE
-clear_duplicate(ServerPid, To, Token, {xmlelement, "iq", Attrs, _SubEls}) ->
-  case proplists:get_value("type", Attrs) of
-    "set" ->
-      true;
-    "result" ->
-      true
-  end.
+clear_duplicate(ServerPid, To, {xmlelement, "iq", Attrs, _SubEls}) ->
+  Id = proplists:get_value("id", Attrs),
+  XMPP = get_connection_info(ServerPid),
+  natter_connection:send_iq(XMPP, "error", Id, To, natter_parser:element_to_string(?BAD_PACKET_ERR)).
