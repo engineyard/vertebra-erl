@@ -70,83 +70,27 @@ get_connection_info(ServerPid) ->
 %% with liveness checking
 send_fatal_error(ServerPid, To, Token, Error) ->
   XMPP = get_connection_info(ServerPid),
-  case vertebra_xmpp:send_wait_set(XMPP, {}, To, op_builder:error_op("fatal", Error, Token)) of
-    {ok, Reply} ->
-      case handle_reply(ServerPid, Reply) of
-        ok ->
-          Reply;
-        retry ->
-          send_fatal_error(ServerPid, To, Token, Error);
-        duplicate ->
-          case clear_duplicate(ServerPid, To, Token, Reply) of
-            true ->
-              send_fatal_error(ServerPid, To, Token, Error);
-            false ->
-              {error, {abort, duplicate}}
-          end;
-        cancel ->
-          {error, {abort, Reply}}
-      end;
-    Error ->
-      Error
-  end.
-
+  ErrStanza = ops_builder:error_op("fatal", Error, Token),
+  RetryFun = fun() -> vertebra_xmpp:send_wait_set(XMPP, {}, To, ErrStanza) end,
+  transmit(ServerPid, XMPP, {RetryFun, To, Token}).
 
 send_error(ServerPid, To, Token, Error) ->
   XMPP = get_connection_info(ServerPid),
-  case vertebra_xmpp:send_wait_set(XMPP, {}, To, ops_builder:error_op(Error, Token)) of
-    {ok, Reply} ->
-      case handle_reply(ServerPid, Reply) of
-        ok ->
-          Reply;
-        retry ->
-          send_error(ServerPid, To, Token, Error);
-        duplicate ->
-          {error, duplicate};
-        cancel ->
-          {error, {abort, Reply}}
-      end;
-    Error ->
-      Error
-  end.
-
+  ErrStanza = ops_builder:error_op(Error, Token),
+  RetryFun = fun() -> vertebra_xmpp:send_wait_set(XMPP, {}, To, ErrStanza) end,
+  transmit(ServerPid, XMPP, {RetryFun, To, Token}).
 
 send_result(ServerPid, To, Token, Result) ->
   XMPP = get_connection_info(ServerPid),
-  case vertebra_xmpp:send_wait_set(XMPP, {}, To, ops_builder:result_op(Result, Token)) of
-    {ok, Reply} ->
-      case handle_reply(ServerPid, Reply) of
-        ok ->
-          Reply;
-        retry ->
-          send_result(ServerPid, To, Token, Result);
-        duplicate ->
-          {error, duplicate};
-        cancel ->
-          {error, {abort, Reply}}
-      end;
-    Error ->
-      Error
-  end.
+  ResultStanza = ops_builder:result_op(Result, Token),
+  RetryFun = fun() -> vertebra_xmpp:send_wait_set(XMPP, {}, To, ResultStanza) end,
+  transmit(ServerPid, XMPP, {RetryFun, To, Token}).
 
 end_result(ServerPid, To, Token) ->
   XMPP = get_connection_info(ServerPid),
-  case vertebra_xmpp:send_wait_set(XMPP, {}, To, ops_builder:final_op(Token)) of
-    {ok, Reply} ->
-      case handle_reply(ServerPid, Reply) of
-        ok ->
-          Reply;
-        retry ->
-          end_result(ServerPid, To, Token);
-        duplicate ->
-          {error, duplicate};
-        cancel ->
-          {error, {abort, Reply}}
-      end;
-    Error ->
-      Error
-  end.
-
+  Final = ops_builder:final_op(Token),
+  RetryFun = fun() -> vertebra_xmpp:send_wait_set(XMPP, {}, To, Final) end,
+  transmit(ServerPid, XMPP, {RetryFun, To, Token}).
 
 add_resources(ServerPid, Resources) ->
   gen_server:call(ServerPid, {add_resources, Resources}).
@@ -247,6 +191,29 @@ code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
 %% Internal functions
+transmit(ServerPid, XMPP, {XmitFun, To, Token}=Xmitter) ->
+  case XmitFun() of
+    {ok, Reply} ->
+      case handle_reply(ServerPid, Reply) of
+        ok ->
+          Reply;
+        retry ->
+          transmit(ServerPid, XMPP, Xmitter);
+        duplicate ->
+          case clear_duplicate(ServerPid, To, Token, Reply) of
+            true ->
+              transmit(ServerPid, XMPP, Xmitter);
+            false ->
+              {error, {abort, duplicate}}
+          end;
+        cancel ->
+          {error, {abort, Reply}}
+      end;
+    Error ->
+      Error
+  end.
+
+
 rotate_token(Token) ->
   Parts = string:tokens(Token, ":"),
   case length(Parts) of
