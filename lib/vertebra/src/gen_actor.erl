@@ -191,7 +191,7 @@ code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
 %% Internal functions
-transmit(ServerPid, XMPP, {XmitFun, To}=Xmitter) ->
+transmit(ServerPid, XMPP, {XmitFun, _To}=Xmitter) ->
   case XmitFun() of
     {ok, Reply} ->
       case handle_reply(ServerPid, Reply) of
@@ -199,13 +199,9 @@ transmit(ServerPid, XMPP, {XmitFun, To}=Xmitter) ->
           Reply;
         retry ->
           transmit(ServerPid, XMPP, Xmitter);
+        %% Bail for now since we can't do anything else right now
         duplicate ->
-          case clear_duplicate(ServerPid, To, Reply) of
-            true ->
-              transmit(ServerPid, XMPP, Xmitter);
-            false ->
-              {error, {abort, duplicate}}
-          end;
+          {error, {abort, duplicate}};
         cancel ->
           {error, {abort, Reply}}
       end;
@@ -315,9 +311,3 @@ find_duplicate(Fingerprint, [_|T], State) ->
   find_duplicate(Fingerprint, T, State);
 find_duplicate(Fingerprint, [], State) ->
   {false, State#state{packet_fingerprints=[Fingerprint|State#state.packet_fingerprints]}}.
-
-%% START HERE
-clear_duplicate(ServerPid, To, {xmlelement, "iq", Attrs, _SubEls}) ->
-  Id = proplists:get_value("id", Attrs),
-  XMPP = get_connection_info(ServerPid),
-  natter_connection:send_iq(XMPP, "error", Id, To, natter_parser:element_to_string(?BAD_PACKET_ERR)).
