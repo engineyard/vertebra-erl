@@ -55,8 +55,8 @@ confirm_op(XMPP, TrackInfo, From, Op, Token, PacketId, IsAck) ->
       case IsAck of
         true ->
           case send_wait_set(XMPP, TrackInfo, From, ops_builder:ack_op(UpdatedToken)) of
-            {ok, {xmlelement, "iq", _, SubEls}} ->
-              {ok, get_token(SubEls)};
+            {ok, Reply} ->
+              {ok, get_token(Reply)};
             Error ->
               Error
           end;
@@ -68,6 +68,9 @@ confirm_op(XMPP, TrackInfo, From, Op, Token, PacketId, IsAck) ->
 get_named_arg(Name, Op) ->
   {ok, Args} = xml_util:convert(from, get_args(Op)),
   find_arg(Name, Args).
+
+get_token({xmlelement, _, _, Subels}) ->
+  get_token(Subels);
 
 get_token([{xmlelement, Name, Attrs, _}|_T]) when Name =:= "op";
                                                   Name =:= "ack";

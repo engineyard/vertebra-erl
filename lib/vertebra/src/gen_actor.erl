@@ -66,8 +66,6 @@ is_duplicate(ServerPid, Stanza) ->
 get_connection_info(ServerPid) ->
   gen_server:call(ServerPid, get_xmpp_connection_info).
 
-%% TODO: Fix retry handling in send_* functions to interface
-%% with liveness checking
 send_error(ServerPid, To, Token, Error) ->
   UpdatedToken = vertebra_util:increment_token_sequence(Token),
   XMPP = get_connection_info(ServerPid),
