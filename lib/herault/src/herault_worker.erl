@@ -89,7 +89,6 @@ handle_request("/security/discover", State) ->
                      end,
       gen_actor:send_result(State#state.owner, State#state.from, State#state.token, Result);
     _Error ->
-      io:format("!! Error (~p: ~p): ~p~n", [?FILE, ?LINE, _Error]),
       gen_actor:send_error(State#state.owner, State#state.from, State#state.token, "Error processing query")
   end,
   gen_actor:end_result(State#state.owner, State#state.from, State#state.token),
@@ -119,7 +118,7 @@ handle_request("/security/advertise", State) ->
                       case gen_actor:send_result(State#state.owner, State#state.from, State#state.token, Result) of
                         {error, {abort, _}} ->
                           false;
-                        _ ->
+                        {ok, _} ->
                           true
                       end;
                     {error, Err} ->
@@ -132,7 +131,7 @@ handle_request("/security/advertise", State) ->
                       case gen_actor:send_result(State#state.owner, State#state.from, State#state.token, get_single_arg(State)) of
                         {error, {abort, _}} ->
                           false;
-                        _ ->
+                        {ok, _} ->
                           true
                       end;
                     _Error ->

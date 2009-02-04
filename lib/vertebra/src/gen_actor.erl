@@ -27,7 +27,7 @@
 
 
 %% API
--export([start_link/3, get_connection_info/1, send_fatal_error/4]).
+-export([start_link/3, get_connection_info/1]).
 -export([send_error/4, send_result/4, end_result/3]).
 -export([add_resources/2, remove_resources/2, stop/1]).
 -export([is_duplicate/2]).
@@ -68,27 +68,24 @@ get_connection_info(ServerPid) ->
 
 %% TODO: Fix retry handling in send_* functions to interface
 %% with liveness checking
-send_fatal_error(ServerPid, To, Token, Error) ->
-  XMPP = get_connection_info(ServerPid),
-  ErrStanza = ops_builder:error_op("fatal", Error, Token),
-  RetryFun = fun() -> vertebra_xmpp:send_wait_set(XMPP, {}, To, ErrStanza) end,
-  transmit(ServerPid, XMPP, {RetryFun, To}).
-
 send_error(ServerPid, To, Token, Error) ->
+  UpdatedToken = vertebra_util:increment_token_sequence(Token),
   XMPP = get_connection_info(ServerPid),
-  ErrStanza = ops_builder:error_op(Error, Token),
+  ErrStanza = ops_builder:error_op(Error, UpdatedToken),
   RetryFun = fun() -> vertebra_xmpp:send_wait_set(XMPP, {}, To, ErrStanza) end,
   transmit(ServerPid, XMPP, {RetryFun, To}).
 
 send_result(ServerPid, To, Token, Result) ->
+  UpdatedToken = vertebra_util:increment_token_sequence(Token),
   XMPP = get_connection_info(ServerPid),
-  ResultStanza = ops_builder:result_op(Result, Token),
+  ResultStanza = ops_builder:result_op(Result, UpdatedToken),
   RetryFun = fun() -> vertebra_xmpp:send_wait_set(XMPP, {}, To, ResultStanza) end,
   transmit(ServerPid, XMPP, {RetryFun, To}).
 
 end_result(ServerPid, To, Token) ->
+  UpdatedToken = vertebra_util:increment_token_sequence(Token),
   XMPP = get_connection_info(ServerPid),
-  Final = ops_builder:final_op(Token),
+  Final = ops_builder:final_op(UpdatedToken),
   RetryFun = fun() -> vertebra_xmpp:send_wait_set(XMPP, {}, To, Final) end,
   transmit(ServerPid, XMPP, {RetryFun, To}).
 
@@ -196,7 +193,7 @@ transmit(ServerPid, XMPP, {XmitFun, _To}=Xmitter) ->
     {ok, Reply} ->
       case handle_reply(ServerPid, Reply) of
         ok ->
-          Reply;
+          {ok, Reply};
         retry ->
           transmit(ServerPid, XMPP, Xmitter);
         %% Bail for now since we can't do anything else right now
@@ -212,12 +209,17 @@ transmit(ServerPid, XMPP, {XmitFun, _To}=Xmitter) ->
 
 rotate_token(Token) ->
   Parts = string:tokens(Token, ":"),
-  case length(Parts) of
-    1 ->
-      lists:flatten([Parts, ":", uuid_server:generate_uuid()]);
-    2 ->
-      lists:flatten([lists:nth(2, Parts), ":", uuid_server:generate_uuid()])
-  end.
+  T = case length(Parts) of
+        1 ->
+          lists:flatten([Parts, ":", uuid_server:generate_uuid()]);
+        2 ->
+          lists:flatten([lists:nth(2, Parts), ":", uuid_server:generate_uuid()]);
+        3 ->
+          OriginalPart = lists:nth(2, Parts),
+          SeqNum = lists:nth(3, Parts),
+          lists:flatten(OriginalPart, ":", uuid_server:generate_uuid(), ":", SeqNum)
+      end,
+  vertebra_util:increment_token_sequence(T).
 
 verify_permissions(Config, Herault, Caller, Resources) ->
   case vertebra_auth:verify(Config, Herault, Caller, Resources) of
@@ -241,8 +243,15 @@ dispatch(ServerPid, ServerState, From, PacketId, Token, Op) ->
                 end,
   if
     CanContinue =:= true ->
-      vertebra_xmpp:confirm_op(Connection, {}, From, Op, Token, PacketId, true),
-      run_callback(ServerPid, ServerState, From, Token, Op);
+      case vertebra_xmpp:confirm_op(Connection, {}, From, Op, Token, PacketId, true) of
+        %% FIXME: Confirming ops should handle timeouts
+        {error, timeout} ->
+          ok;
+        {error, {abort, _}} ->
+          ok;
+        {ok, UpdatedToken} ->
+          run_callback(ServerPid, ServerState, From, UpdatedToken, Op)
+      end;
     true ->
       vertebra_xmpp:confirm_op(Connection, {}, From, Op, Token, PacketId, false)
   end.
@@ -310,4 +319,11 @@ find_duplicate(Fingerprint, [Fingerprint|_T], State) ->
 find_duplicate(Fingerprint, [_|T], State) ->
   find_duplicate(Fingerprint, T, State);
 find_duplicate(Fingerprint, [], State) ->
-  {false, State#state{packet_fingerprints=[Fingerprint|State#state.packet_fingerprints]}}.
+  #state{packet_fingerprints=Fingerprints} = State,
+  {FP, _} = case length(Fingerprints) == 100 of
+              true ->
+                lists:split(99, Fingerprints);
+              false ->
+                {Fingerprints, []}
+            end,
+  {false, State#state{packet_fingerprints=[Fingerprint|FP]}}.

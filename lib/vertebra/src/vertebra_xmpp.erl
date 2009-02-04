@@ -51,11 +51,17 @@ confirm_op(XMPP, TrackInfo, From, Op, Token, PacketId, IsAck) ->
     false ->
       FinalOpAttrs = dict:store("token", Token, dict:from_list(OpAttrs)),
       send_result(XMPP, TrackInfo, PacketId, From, {xmlelement, Name, dict:to_list(FinalOpAttrs), SubEls}),
+      UpdatedToken = vertebra_util:increment_token_sequence(Token),
       case IsAck of
-  true ->
-    send_wait_set(XMPP, TrackInfo, From, ops_builder:ack_op(Token));
-  false ->
-    send_wait_set(XMPP, TrackInfo, From, ops_builder:nack_op(Token))
+        true ->
+          case send_wait_set(XMPP, TrackInfo, From, ops_builder:ack_op(UpdatedToken)) of
+            {ok, {xmlelement, "iq", _, SubEls}} ->
+              {ok, get_token(SubEls)};
+            Error ->
+              Error
+          end;
+        false ->
+          send_wait_set(XMPP, TrackInfo, From, ops_builder:nack_op(UpdatedToken))
       end
   end.
 
