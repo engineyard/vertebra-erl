@@ -33,7 +33,6 @@
          op,
          target,
          start_token,
-         in_progress_token,
          connection,
          own_connection=true,
          client,
@@ -110,7 +109,7 @@ handle_cast({execute, Client}, State) ->
                                string:join(State#state.start_token, ":"),
                                State#state.inputs}),
   case vertebra_xmpp:send_wait_set(State#state.connection, ?ERROR_TRACKING_DISABLED, State#state.target, Op) of
-    {ok, Reply} ->
+    {ok, _UpdatedToken, Reply} ->
       case handle_reply(Reply) of
         retry ->
           %% Restart execute process since we got a wait error
@@ -132,7 +131,7 @@ handle_info({packet, {xmlelement, "iq", Attrs, [{xmlelement, "final", _, _}=Stan
                                 ?ERROR_TRACKING_DISABLED,
                                 proplists:get_value("id", Attrs),
                                 From,
-                                Stanza),
+                                increment_sequence(Stanza)),
   #state{client={pid, ClientRef}} = State,
   ClientRef ! {xmpp_command_result, From, lists:flatten(State#state.results)},
   {stop, normal, State};
@@ -143,7 +142,7 @@ handle_info({packet, {xmlelement, "iq", Attrs, [{xmlelement, "error", _, [Reason
                                 ?ERROR_TRACKING_DISABLED,
                                 proplists:get_value("id", Attrs),
                                 From,
-                                Stanza),
+                                increment_sequence(Stanza)),
   #state{client={pid, ClientRef}} = State,
   {ok, {string, ReasonDesc}} = xml_util:convert(from, Reason),
   ClientRef ! {xmpp_command_result, From, {error, ReasonDesc}},
@@ -155,7 +154,7 @@ handle_info({packet, {xmlelement, "iq", Attrs, [{xmlelement, "result", _, Result
                                 ?ERROR_TRACKING_DISABLED,
                                 proplists:get_value("id", Attrs),
                                 proplists:get_value("from", Attrs),
-                                Result),
+                                increment_sequence(Result)),
   {noreply, State#state{results=[Results|State#state.results]}};
 
 handle_info({packet, {xmlelement, "iq", Attrs, [{xmlelement, "ack", _, _}=Ack]}}, State) ->
@@ -163,7 +162,7 @@ handle_info({packet, {xmlelement, "iq", Attrs, [{xmlelement, "ack", _, _}=Ack]}}
                                 ?ERROR_TRACKING_DISABLED,
                                 proplists:get_value("id", Attrs),
                                 proplists:get_value("from", Attrs),
-                                Ack),
+                                increment_sequence(Ack)),
   {noreply, State};
 
 handle_info({packet, _}, State) ->
@@ -193,3 +192,12 @@ handle_reply(Reply) ->
     Result ->
       Result
   end.
+
+increment_sequence({xmlelement, Name, Attrs, Subels}) ->
+  NewToken = case proplists:get_value("token", Attrs)  of
+               undefined ->
+                 exit({error, missing_token});
+               Token ->
+                 vertebra_util:increment_token_sequence(Token)
+             end,
+  {xmlelement, Name, [{"token", NewToken} | proplists:delete("token", Attrs)], Subels}.

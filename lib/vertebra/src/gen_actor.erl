@@ -247,7 +247,7 @@ dispatch(ServerPid, ServerState, From, PacketId, Token, Op) ->
           ok;
         {error, {abort, _}} ->
           ok;
-        {ok, UpdatedToken} ->
+        {ok, UpdatedToken, _Reply} ->
           run_callback(ServerPid, ServerState, From, UpdatedToken, Op)
       end;
     true ->
@@ -263,8 +263,12 @@ run_callback(ServerPid, ServerState, From, Token, Op) ->
   catch
     error:undef ->
       Error = lists:flatten(["No handler for op: ", OpName]),
-      vertebra_xmpp:send_wait_set(ServerState#state.xmpp, {}, From, op_builder:error_op("fatal", Error, Token)),
-      vertebra_xmpp:send_wait_set(ServerState#state.xmpp, {}, From, ops_builder:final_op(Token))
+      case vertebra_xmpp:send_wait_set(ServerState#state.xmpp, {}, From, op_builder:error_op("fatal", Error, Token)) of
+        {ok, UpdatedToken, _} ->
+          vertebra_xmpp:send_wait_set(ServerState#state.xmpp, {}, From, ops_builder:final_op(UpdatedToken));
+        {error, _} ->
+          ok
+      end
   end.
 
 find_vertebra_element([{xmlelement, Name, _, _}=H|_T]) when Name =:= "op";

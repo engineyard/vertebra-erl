@@ -29,13 +29,23 @@ send_set(XMPP, TrackInfo, To, Body) when is_tuple(TrackInfo), is_tuple(Body) ->
   send_set(XMPP, TrackInfo, To, natter_parser:element_to_string(Body));
 
 send_set(XMPP, TrackInfo, To, Body) when is_tuple(TrackInfo), is_list(Body) ->
-  natter_connection:send_iq(XMPP, "set", new_packet_id(), To, Body).
+  case natter_connection:send_iq(XMPP, "set", new_packet_id(), To, Body) of
+    {ok, Reply} ->
+      {ok, get_token(Reply), Reply};
+    Error ->
+      Error
+  end.
 
 send_wait_set(XMPP, TrackInfo, To, Body) when is_tuple(TrackInfo), is_tuple(Body) ->
   send_wait_set(XMPP, TrackInfo, To, natter_parser:element_to_string(Body));
 
 send_wait_set(XMPP, TrackInfo, To, Body) when is_tuple(TrackInfo), is_list(Body) ->
-  natter_connection:send_wait_iq(XMPP, "set", new_packet_id(), To, Body, ?SEND_TIMEOUT).
+  case natter_connection:send_wait_iq(XMPP, "set", new_packet_id(), To, Body, ?SEND_TIMEOUT) of
+    {ok, Reply} ->
+      {ok, get_token(Reply), Reply};
+     Error ->
+      Error
+  end.
 
 send_result(XMPP, TrackInfo, To, PacketId, Body) when is_tuple(TrackInfo), is_tuple(Body) ->
   send_result(XMPP, TrackInfo, To, PacketId, natter_parser:element_to_string(Body));
@@ -55,8 +65,8 @@ confirm_op(XMPP, TrackInfo, From, Op, Token, PacketId, IsAck) ->
       case IsAck of
         true ->
           case send_wait_set(XMPP, TrackInfo, From, ops_builder:ack_op(UpdatedToken)) of
-            {ok, Reply} ->
-              {ok, get_token(Reply)};
+            {ok, UpdatedToken, Reply} ->
+              {ok, UpdatedToken};
             Error ->
               Error
           end;
