@@ -248,8 +248,6 @@ dispatch(ServerPid, ServerState, From, PacketId, Token, Op) ->
         {error, {abort, _}} ->
           ok;
         {ok, UpdatedToken} ->
-          run_callback(ServerPid, ServerState, From, UpdatedToken, Op);
-        {ok, UpdatedToken, _} ->
           run_callback(ServerPid, ServerState, From, UpdatedToken, Op)
       end;
     true ->

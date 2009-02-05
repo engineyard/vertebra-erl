@@ -65,13 +65,18 @@ confirm_op(XMPP, TrackInfo, From, Op, Token, PacketId, IsAck) ->
       case IsAck of
         true ->
           case send_wait_set(XMPP, TrackInfo, From, ops_builder:ack_op(UpdatedToken)) of
-            {ok, UpdatedToken, Reply} ->
-              {ok, UpdatedToken};
-            Error ->
-              Error
+            {ok, UpdatedToken2, _Reply} ->
+              {ok, UpdatedToken2};
+            {error, Error} ->
+              {error, Error}
           end;
         false ->
-          send_wait_set(XMPP, TrackInfo, From, ops_builder:nack_op(UpdatedToken))
+          case send_wait_set(XMPP, TrackInfo, From, ops_builder:nack_op(UpdatedToken)) of
+            {ok, UpdatedToken2, _Reply} ->
+              {ok, UpdatedToken2};
+            {error, Error} ->
+              {error, Error}
+          end
       end
   end.
 
