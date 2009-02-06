@@ -22,7 +22,7 @@
 -define(DEFAULT_TTL, 3600).
 
 -define(BAD_PACKET_ERR, {xmlelement, "error", [{"code", "406"},
-                                               {"type", "modify"}], [{xmlcdata, "not-acceptable", [{"xmlns", "urn:ietf:params:xml:ns:xmpp-stanzas"}], []}]}).
+                                               {"type", "modify"}], [{xmlelement, "not-acceptable", [{"xmlns", "urn:ietf:params:xml:ns:xmpp-stanzas"}], []}]}).
 -define(MISSING_VERT_ELEMENT_ERR, {xmlelement, "error", [{"code", "400"}], [{xmlcdata, <<"Missing required Vertebra element">>}]}).
 
 
