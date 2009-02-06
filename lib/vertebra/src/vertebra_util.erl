@@ -17,20 +17,12 @@
 
 -module(vertebra_util).
 
--export([jid_from_config/1, md5/1, increment_token_sequence/1]).
+-export([jid_from_config/1, md5/1]).
 
 -define(JID_ATTRS, [user, host, resource]).
 
 jid_from_config(XMPPConfig) ->
   lists:foldl(fun(Attr, Acc) -> resolve_attr(Attr, XMPPConfig, Acc) end, "", ?JID_ATTRS).
-
-increment_token_sequence(Token) ->
-  case string:tokens(Token, ":") of
-    [Start, End] ->
-      lists:flatten([Start, ":", End, ":", "0"]);
-    [Start, End, Seq] ->
-      lists:flatten([Start, ":", End, ":", integer_to_list(list_to_integer(Seq) + 1)])
-  end.
 
 md5(Text) when is_list(Text) ->
   Checksum = binary_to_list(erlang:md5(Text)),

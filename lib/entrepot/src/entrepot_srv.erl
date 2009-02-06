@@ -55,8 +55,8 @@ handle_op("/entrepot/store", ServerPid, From, Token, Op) ->
   case result_callback(#item{key=Key, value=Value}, ServerPid, From, Token) of
     {error, {abort, _}} ->
       ok;
-    {ok, UpdatedToken, _Reply} ->
-      gen_actor:end_result(ServerPid, From, UpdatedToken)
+    _ ->
+      gen_actor:end_result(ServerPid, From, Token)
   end;
 
 handle_op("/entrepot/delete", ServerPid, From, Token, Op) ->

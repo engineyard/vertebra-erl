@@ -29,23 +29,13 @@ send_set(XMPP, TrackInfo, To, Body) when is_tuple(TrackInfo), is_tuple(Body) ->
   send_set(XMPP, TrackInfo, To, natter_parser:element_to_string(Body));
 
 send_set(XMPP, TrackInfo, To, Body) when is_tuple(TrackInfo), is_list(Body) ->
-  case natter_connection:send_iq(XMPP, "set", new_packet_id(), To, Body) of
-    {ok, Reply} ->
-      {ok, get_token(Reply), Reply};
-    Error ->
-      Error
-  end.
+  natter_connection:send_iq(XMPP, "set", new_packet_id(), To, Body).
 
 send_wait_set(XMPP, TrackInfo, To, Body) when is_tuple(TrackInfo), is_tuple(Body) ->
   send_wait_set(XMPP, TrackInfo, To, natter_parser:element_to_string(Body));
 
 send_wait_set(XMPP, TrackInfo, To, Body) when is_tuple(TrackInfo), is_list(Body) ->
-  case natter_connection:send_wait_iq(XMPP, "set", new_packet_id(), To, Body, ?SEND_TIMEOUT) of
-    {ok, Reply} ->
-      {ok, get_token(Reply), Reply};
-     Error ->
-      Error
-  end.
+  natter_connection:send_wait_iq(XMPP, "set", new_packet_id(), To, Body, ?SEND_TIMEOUT).
 
 send_result(XMPP, TrackInfo, To, PacketId, Body) when is_tuple(TrackInfo), is_tuple(Body) ->
   send_result(XMPP, TrackInfo, To, PacketId, natter_parser:element_to_string(Body));
@@ -61,22 +51,16 @@ confirm_op(XMPP, TrackInfo, From, Op, Token, PacketId, IsAck) ->
     false ->
       FinalOpAttrs = dict:store("token", Token, dict:from_list(OpAttrs)),
       send_result(XMPP, TrackInfo, PacketId, From, {xmlelement, Name, dict:to_list(FinalOpAttrs), SubEls}),
-      UpdatedToken = vertebra_util:increment_token_sequence(Token),
       case IsAck of
         true ->
           case send_wait_set(XMPP, TrackInfo, From, ops_builder:ack_op(UpdatedToken)) of
-            {ok, UpdatedToken2, _Reply} ->
-              {ok, UpdatedToken2};
-            {error, Error} ->
-              {error, Error}
+            {ok, Reply} ->
+              {ok, get_token(Reply)};
+            Error ->
+              Error
           end;
         false ->
-          case send_wait_set(XMPP, TrackInfo, From, ops_builder:nack_op(UpdatedToken)) of
-            {ok, UpdatedToken2, _Reply} ->
-              {ok, UpdatedToken2};
-            {error, Error} ->
-              {error, Error}
-          end
+          send_wait_set(XMPP, TrackInfo, From, ops_builder:nack_op(UpdatedToken))
       end
   end.
 

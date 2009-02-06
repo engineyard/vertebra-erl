@@ -27,7 +27,7 @@
 
 
 %% API
--export([start_link/3, get_connection_info/1]).
+-export([start_link/3, get_connection_info/1, send_fatal_error/4]).
 -export([send_error/4, send_result/4, end_result/3]).
 -export([add_resources/2, remove_resources/2, stop/1]).
 -export([is_duplicate/2]).
@@ -67,23 +67,20 @@ get_connection_info(ServerPid) ->
   gen_server:call(ServerPid, get_xmpp_connection_info).
 
 send_error(ServerPid, To, Token, Error) ->
-  UpdatedToken = vertebra_util:increment_token_sequence(Token),
   XMPP = get_connection_info(ServerPid),
-  ErrStanza = ops_builder:error_op(Error, UpdatedToken),
+  ErrStanza = ops_builder:error_op(Error, Token),
   RetryFun = fun() -> vertebra_xmpp:send_wait_set(XMPP, {}, To, ErrStanza) end,
   transmit(ServerPid, XMPP, {RetryFun, To}).
 
 send_result(ServerPid, To, Token, Result) ->
-  UpdatedToken = vertebra_util:increment_token_sequence(Token),
   XMPP = get_connection_info(ServerPid),
-  ResultStanza = ops_builder:result_op(Result, UpdatedToken),
+  ResultStanza = ops_builder:result_op(Result, Token),
   RetryFun = fun() -> vertebra_xmpp:send_wait_set(XMPP, {}, To, ResultStanza) end,
   transmit(ServerPid, XMPP, {RetryFun, To}).
 
 end_result(ServerPid, To, Token) ->
-  UpdatedToken = vertebra_util:increment_token_sequence(Token),
   XMPP = get_connection_info(ServerPid),
-  Final = ops_builder:final_op(UpdatedToken),
+  Final = ops_builder:final_op(Token),
   RetryFun = fun() -> vertebra_xmpp:send_wait_set(XMPP, {}, To, Final) end,
   transmit(ServerPid, XMPP, {RetryFun, To}).
 
@@ -186,17 +183,21 @@ code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
 %% Internal functions
-transmit(ServerPid, XMPP, {XmitFun, _To}=Xmitter) ->
+transmit(ServerPid, XMPP, {XmitFun, To}=Xmitter) ->
   case XmitFun() of
     {ok, Reply} ->
       case handle_reply(ServerPid, Reply) of
         ok ->
-          {ok, Reply};
+          Reply;
         retry ->
           transmit(ServerPid, XMPP, Xmitter);
-        %% Bail for now since we can't do anything else right now
         duplicate ->
-          {error, {abort, duplicate}};
+          case clear_duplicate(ServerPid, To, Reply) of
+            true ->
+              transmit(ServerPid, XMPP, Xmitter);
+            false ->
+              {error, {abort, duplicate}}
+          end;
         cancel ->
           {error, {abort, Reply}}
       end;
@@ -207,17 +208,12 @@ transmit(ServerPid, XMPP, {XmitFun, _To}=Xmitter) ->
 
 rotate_token(Token) ->
   Parts = string:tokens(Token, ":"),
-  T = case length(Parts) of
-        1 ->
-          lists:flatten([Parts, ":", uuid_server:generate_uuid()]);
-        2 ->
-          lists:flatten([lists:nth(2, Parts), ":", uuid_server:generate_uuid()]);
-        3 ->
-          OriginalPart = lists:nth(2, Parts),
-          SeqNum = lists:nth(3, Parts),
-          lists:flatten(OriginalPart, ":", uuid_server:generate_uuid(), ":", SeqNum)
-      end,
-  vertebra_util:increment_token_sequence(T).
+  case length(Parts) of
+    1 ->
+      lists:flatten([Parts, ":", uuid_server:generate_uuid()]);
+    2 ->
+      lists:flatten([lists:nth(2, Parts), ":", uuid_server:generate_uuid()])
+  end.
 
 verify_permissions(Config, Herault, Caller, Resources) ->
   case vertebra_auth:verify(Config, Herault, Caller, Resources) of
@@ -241,15 +237,8 @@ dispatch(ServerPid, ServerState, From, PacketId, Token, Op) ->
                 end,
   if
     CanContinue =:= true ->
-      case vertebra_xmpp:confirm_op(Connection, {}, From, Op, Token, PacketId, true) of
-        %% FIXME: Confirming ops should handle timeouts
-        {error, timeout} ->
-          ok;
-        {error, {abort, _}} ->
-          ok;
-        {ok, UpdatedToken} ->
-          run_callback(ServerPid, ServerState, From, UpdatedToken, Op)
-      end;
+      vertebra_xmpp:confirm_op(Connection, {}, From, Op, Token, PacketId, true),
+      run_callback(ServerPid, ServerState, From, Token, Op);
     true ->
       vertebra_xmpp:confirm_op(Connection, {}, From, Op, Token, PacketId, false)
   end.
@@ -263,12 +252,8 @@ run_callback(ServerPid, ServerState, From, Token, Op) ->
   catch
     error:undef ->
       Error = lists:flatten(["No handler for op: ", OpName]),
-      case vertebra_xmpp:send_wait_set(ServerState#state.xmpp, {}, From, op_builder:error_op("fatal", Error, Token)) of
-        {ok, UpdatedToken, _} ->
-          vertebra_xmpp:send_wait_set(ServerState#state.xmpp, {}, From, ops_builder:final_op(UpdatedToken));
-        {error, _} ->
-          ok
-      end
+      vertebra_xmpp:send_wait_set(ServerState#state.xmpp, {}, From, op_builder:error_op("fatal", Error, Token)),
+      vertebra_xmpp:send_wait_set(ServerState#state.xmpp, {}, From, ops_builder:final_op(Token))
   end.
 
 find_vertebra_element([{xmlelement, Name, _, _}=H|_T]) when Name =:= "op";
@@ -321,11 +306,10 @@ find_duplicate(Fingerprint, [Fingerprint|_T], State) ->
 find_duplicate(Fingerprint, [_|T], State) ->
   find_duplicate(Fingerprint, T, State);
 find_duplicate(Fingerprint, [], State) ->
-  #state{packet_fingerprints=Fingerprints} = State,
-  {FP, _} = case length(Fingerprints) == 100 of
-              true ->
-                lists:split(99, Fingerprints);
-              false ->
-                {Fingerprints, []}
-            end,
-  {false, State#state{packet_fingerprints=[Fingerprint|FP]}}.
+  {false, State#state{packet_fingerprints=[Fingerprint|State#state.packet_fingerprints]}}.
+
+%% START HERE
+clear_duplicate(ServerPid, To, {xmlelement, "iq", Attrs, _SubEls}) ->
+  Id = proplists:get_value("id", Attrs),
+  XMPP = get_connection_info(ServerPid),
+  natter_connection:send_iq(XMPP, "error", Id, To, natter_parser:element_to_string(?BAD_PACKET_ERR)).

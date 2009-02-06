@@ -87,15 +87,12 @@ handle_request("/security/discover", State) ->
                        false ->
                          xml_util:convert(to, {list, [{"name", "jids"}], build_refs(Jids)})
                      end,
-      case gen_actor:send_result(State#state.owner, State#state.from, State#state.token, Result) of
-        {ok, UpdatedToken, _Reply} ->
-          gen_actor:end_result(State#state.owner, State#state.from, UpdatedToken);
-        {error, _} ->
-          ok
-      end;
+      gen_actor:send_result(State#state.owner, State#state.from, State#state.token, Result);
     _Error ->
+      io:format("!! Error (~p: ~p): ~p~n", [?FILE, ?LINE, _Error]),
       gen_actor:send_error(State#state.owner, State#state.from, State#state.token, "Error processing query")
   end,
+  gen_actor:end_result(State#state.owner, State#state.from, State#state.token),
   {stop, normal, State};
 
 handle_request("/security/advertise", State) ->
@@ -114,10 +111,38 @@ handle_request("/security/advertise", State) ->
                             State#state.from
                         end
                     end,
-  {Success, UpdatedToken} = process_advertisements(TTL, RegistrationJid, Resources, State),
+  SendFinal = case TTL of
+                0 ->
+                  case remove_resources(RegistrationJid, Resources, TTL) of
+                    ok ->
+                      {ok, Result} = xml_util:convert(to, {list, [{"name", "result"}], []}),
+                      case gen_actor:send_result(State#state.owner, State#state.from, State#state.token, Result) of
+                        {error, {abort, _}} ->
+                          false;
+                        _ ->
+                          true
+                      end;
+                    {error, Err} ->
+                      gen_actor:send_error(State#state.owner, State#state.from, State#state.token, Err),
+                      false
+                  end;
+                _ ->
+                  case listing_store:add_listing(RegistrationJid, Resources, TTL) of
+                    ok ->
+                      case gen_actor:send_result(State#state.owner, State#state.from, State#state.token, get_single_arg(State)) of
+                        {error, {abort, _}} ->
+                          false;
+                        _ ->
+                          true
+                      end;
+                    _Error ->
+                      gen_actor:send_error(State#state.owner, State#state.from, State#state.token, "Error recording resources"),
+                      false
+                  end
+              end,
   if
-    Success =:= true ->
-      gen_actor:end_result(State#state.owner, State#state.from, UpdatedToken);
+    SendFinal =:= true ->
+      gen_actor:end_result(State#state.owner, State#state.from, State#state.token);
     true ->
       ok
   end,
@@ -140,8 +165,8 @@ handle_request("/security/authorize", State) ->
   case gen_actor:send_result(State#state.owner, State#state.from, State#state.token, AuthResult) of
     {error, {abort, _}} ->
       ok;
-    {ok, UpdatedToken, _Reply} ->
-      gen_actor:end_result(State#state.owner, State#state.from, UpdatedToken)
+    _ ->
+      gen_actor:end_result(State#state.owner, State#state.from, State#state.token)
   end,
   {stop, normal, State};
 
@@ -150,36 +175,6 @@ handle_request(Ignored, State) ->
   {stop, normal, State}.
 
 %% Internal functions
-process_advertisements(TTL, RegistrationJid, Resources, State) when TTL == 0 ->
-case remove_resources(RegistrationJid, Resources, TTL) of
-  ok ->
-    {ok, Result} = xml_util:convert(to, {list, [{"name", "result"}], []}),
-    case gen_actor:send_result(State#state.owner, State#state.from, State#state.token, Result) of
-      {error, _} ->
-        {false, []};
-      {ok, UpdatedToken, _} ->
-        {true, UpdatedToken}
-    end;
-  {error, Err} ->
-    gen_actor:send_error(State#state.owner, State#state.from, State#state.token, Err),
-    {false, []}
-end;
-
-process_advertisements(TTL, RegistrationJid, Resources, State) ->
-case listing_store:add_listing(RegistrationJid, Resources, TTL) of
-  ok ->
-    case gen_actor:send_result(State#state.owner, State#state.from, State#state.token, get_single_arg(State)) of
-      {error, _} ->
-        {false, []};
-      {ok, UpdatedToken, _} ->
-        {true, UpdatedToken}
-    end;
-  _Error ->
-    gen_actor:send_error(State#state.owner, State#state.from, State#state.token, "Error recording resources"),
-    false
-end.
-
-
 remove_resources(RegistrationJid, Resources, TTL) ->
   {F,A} = case length(Resources) of
             0 -> {delete_listing, [RegistrationJid]};
