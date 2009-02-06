@@ -27,7 +27,7 @@
 
 
 %% API
--export([start_link/3, get_connection_info/1, send_fatal_error/4]).
+-export([start_link/3, get_connection_info/1]).
 -export([send_error/4, send_result/4, end_result/3]).
 -export([add_resources/2, remove_resources/2, stop/1]).
 -export([is_duplicate/2]).
