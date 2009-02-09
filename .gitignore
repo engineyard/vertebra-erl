@@ -13,3 +13,4 @@ missing
 *.plt
 bin/vertebractl
 conf/vertebractl.conf
+.DS_Store
