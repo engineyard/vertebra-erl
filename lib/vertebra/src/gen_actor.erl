@@ -123,9 +123,8 @@ handle_call({add_resources, Resources}, _From, State) ->
   {reply, ok, State};
 
 handle_call({is_duplicate, Stanza}, _From, State) ->
-  Text = natter_parser:element_to_string(Stanza),
-  CS = vertebra_util:md5(Text),
-  {Result, NewState} = find_duplicate(CS, State#state.packet_fingerprints, State),
+  StanzaFingerprint = build_fingerprint(Stanza),
+  {Result, NewState} = find_duplicate(StanzaFingerprint, State#state.packet_fingerprints, State),
   {reply, Result, NewState};
 
 handle_call(_Msg, _From, State) ->
@@ -146,7 +145,7 @@ handle_info({packet, {xmlelement, "iq", Attrs, SubEls}=Stanza}, State) ->
       From = proplists:get_value("from", Attrs),
       case proplists:get_value("type", Attrs) of
         "result" ->
-          natter_connection:send_iq(State#state.xmpp, "error", "", From, natter_parser:element_to_string(?BAD_PACKET_ERR));
+          ok;
         Type when Type =:= "get";
                   Type =:= "set" ->
           case find_vertebra_element(SubEls) of
@@ -310,6 +309,7 @@ find_duplicate(Fingerprint, [], State) ->
 
 %% START HERE
 clear_duplicate(ServerPid, To, {xmlelement, "iq", Attrs, _SubEls}) ->
-  Id = proplists:get_value("id", Attrs),
-  XMPP = get_connection_info(ServerPid),
-  natter_connection:send_iq(XMPP, "error", Id, To, natter_parser:element_to_string(?BAD_PACKET_ERR)).
+  %Id = proplists:get_value("id", Attrs),
+  %XMPP = get_connection_info(ServerPid),
+  %natter_connection:send_iq(XMPP, "error", Id, To, natter_parser:element_to_string(?BAD_PACKET_ERR)).
+  false.
