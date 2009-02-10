@@ -9,6 +9,7 @@ EXTRA_DIST = $(erl_files) $(hrl_files)
 ERLCFLAGS = @ERLCFLAGS@ +debug_info
 
 check-local:
+	export ERL_LIBS=../../../lib
 	$(ERL) -pa ../ebin -eval "test_suite:test()" -s init stop -noshell
 
 ../ebin/%.beam: %.erl
