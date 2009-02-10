@@ -71,7 +71,7 @@ build_test_workflow(Filename) ->
   WF.
 
 read_file(Name, Escape) ->
-  {ok, F} = file:read_file("./examples/" ++ Name),
+  {ok, F} = file:read_file("../examples/" ++ Name),
   case Escape of
     true ->
       xml_util:escape(F);

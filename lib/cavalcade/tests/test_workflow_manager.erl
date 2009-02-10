@@ -41,7 +41,7 @@ response_count_test_() ->
   test_util:new_bundle({?MODULE, empty_startup},
 		       {?MODULE, empty_teardown},
 		       [fun() ->
-			    {ok, F} = file:read_file("./examples/workflow.xml"),
+			    {ok, F} = file:read_file("../examples/workflow.xml"),
 			    {ok, [WF]} = workflow_parser:parse_workflow(F),
 			    C = workflow_manager:new(WF),
 			    C1 = workflow_manager:response_count(1, C),
@@ -49,7 +49,7 @@ response_count_test_() ->
 			    ?assertEqual(0, workflow_manager:response_count(C2)) end,
 			%% Test response count never drops below 0
 		       fun() ->
-			   {ok, F} = file:read_file("./examples/workflow.xml"),
+			   {ok, F} = file:read_file("../examples/workflow.xml"),
 			   {ok, [WF]} = workflow_parser:parse_workflow(F),
 			   C = workflow_manager:new(WF),
 			   C1 = workflow_manager:response_count(1, C),
@@ -57,7 +57,7 @@ response_count_test_() ->
 			   C3 = workflow_manager:decr_response_count(C2),
 			   ?assertEqual(0, workflow_manager:response_count(C3)) end,
 		       fun() ->
-			   {ok, F} = file:read_file("./examples/workflow.xml"),
+			   {ok, F} = file:read_file("../examples/workflow.xml"),
 			   {ok, [WF]} = workflow_parser:parse_workflow(F),
 			   C = workflow_manager:new(WF),
 			   ?assertException(error, _, workflow_manager:response_count(-1, C)) end ]).
@@ -65,14 +65,14 @@ global_state_test_() ->
   test_util:new_bundle({?MODULE, empty_startup},
 		       {?MODULE, empty_teardown},
 		       [fun() ->
-			    {ok, F} = file:read_file("./examples/workflow.xml"),
+			    {ok, F} = file:read_file("../examples/workflow.xml"),
 			    {ok, [WF]} = workflow_parser:parse_workflow(F),
 			    String = {string, ["name", "response"], <<"hello">>},
 			    C = workflow_manager:new(WF),
 			    C1 = workflow_manager:global_state(String, C),
 			    ?assertMatch(String, workflow_manager:global_state(C1)) end,
 			 fun() ->
- 			    {ok, F} = file:read_file("./examples/workflow.xml"),
+ 			    {ok, F} = file:read_file("../examples/workflow.xml"),
  			    {ok, [WF]} = workflow_parser:parse_workflow(F),
  			    C = workflow_manager:new(WF),
  			    GS = workflow_manager:global_state(C),
@@ -85,7 +85,7 @@ marshalling_state_test_() ->
   test_util:new_bundle({?MODULE, empty_startup},
 		       {?MODULE, empty_teardown},
 		       [fun() ->
-			    {ok, F} = file:read_file("./examples/workflow.xml"),
+			    {ok, F} = file:read_file("../examples/workflow.xml"),
 			    {ok, [WF]} = workflow_parser:parse_workflow(F),
 			    String = {string, ["name", "response"], <<"hello">>},
 			    C = workflow_manager:new(WF),
@@ -98,14 +98,14 @@ advance_workflow_test_() ->
   test_util:new_bundle({?MODULE, empty_startup},
 		       {?MODULE, empty_teardown},
 		       [fun() ->
-			    {ok, F} = file:read_file("./examples/workflow.xml"),
+			    {ok, F} = file:read_file("../examples/workflow.xml"),
 			    {ok, [WF]} = workflow_parser:parse_workflow(F),
 			    C = workflow_manager:new(WF),
 			    C1 = workflow_manager:response_count(1, C),
 			    %% Should be true because we're advance to the first step/op
 			    ?assertNot(C1 == workflow_manager:advance(C1)) end,
 			fun() ->
-			    {ok, F} = file:read_file("./examples/workflow.xml"),
+			    {ok, F} = file:read_file("../examples/workflow.xml"),
 			    {ok, [WF]} = workflow_parser:parse_workflow(F),
 			    C = workflow_manager:new(WF),
 			    C1 = workflow_manager:response_count(1, C),
@@ -114,7 +114,7 @@ advance_workflow_test_() ->
 			    C3 = workflow_manager:advance(C2),
 			    ?assertMatch(C2, C3) end,
 			fun() ->
-			    {ok, F} = file:read_file("./examples/workflow.xml"),
+			    {ok, F} = file:read_file("../examples/workflow.xml"),
 			    {ok, [WF]} = workflow_parser:parse_workflow(F),
 			    C = workflow_manager:new(WF),
 			    C1 = workflow_manager:response_count(1, C),
