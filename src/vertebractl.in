@@ -2,7 +2,7 @@
 
 usage()
 {
-    echo "$(basename $0) app-name [start|stop|run|initdb]"
+    echo "$(basename $0) app-name [start|stop|live|initdb]"
     echo "$(basename $0) app-name [started|waitfor] erlang-app"
 }
 
@@ -81,7 +81,7 @@ initdb()
         -s init stop $@
 }
 
-run()
+live()
 {
     if [ ! -d $MNESIA_DIR ]; then
         initdb
@@ -106,7 +106,7 @@ ctl()
 case $CMD in
     start) start $ARGS;;
     initdb) initdb $ARGS;;
-    run) run $ARGS;;
+    live) live $ARGS;;
     '') usage;;
     *) ctl $CMD $ARGS;;
 esac

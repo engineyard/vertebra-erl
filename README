@@ -18,7 +18,7 @@ To launch an application (e.g. herault):
 
 To launch an application in debug mode (e.g. herault):
 
-  $ bin/vertebractl herault run
+  $ bin/vertebractl herault live
 
 == Installation
 
