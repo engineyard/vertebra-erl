@@ -30,7 +30,7 @@
 %%% stanza. It can also receive a Negative Acknowledgement, which causes it to
 %%% enter a "Auth Fail" state.
 %%%
-%%% When the "result" stanzas start coming in, it enters the Consume state, and
+%%% When the "data" stanzas start coming in, it enters the Consume state, and
 %%% responds for each of them.
 %%%
 %%% When the "final" stanza comes in, it enters the Commit state, in which it

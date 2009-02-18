@@ -150,7 +150,7 @@ handle_info({packet, {xmlelement, "iq", Attrs, [{xmlelement, "error", _, [Reason
   {stop, normal, State};
 
 
-handle_info({packet, {xmlelement, "iq", Attrs, [{xmlelement, "result", _, Results}=Result]}}, State) ->
+handle_info({packet, {xmlelement, "iq", Attrs, [{xmlelement, "data", _, Results}=Result]}}, State) ->
     vertebra_xmpp:send_result(State#state.connection,
                                 ?ERROR_TRACKING_DISABLED,
                                 proplists:get_value("id", Attrs),

@@ -257,7 +257,7 @@ run_callback(ServerPid, ServerState, From, Token, Op) ->
 
 find_vertebra_element([{xmlelement, Name, _, _}=H|_T]) when Name =:= "op";
                                                             Name =:= "ack";
-                                                            Name =:= "result";
+                                                            Name =:= "data";
                                                             Name =:= "final" ->
   H;
 find_vertebra_element([_H|T]) ->

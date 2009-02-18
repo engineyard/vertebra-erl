@@ -58,7 +58,7 @@ non_list_result_test_() ->
 	generate_valid_result_tests("partial", Op, 1) end}].
 
 generate_valid_result_tests(_Type, Result, ExpectedSubEls) ->
-  [?_assertEqual("result", Result#xmlelement.name),
+  [?_assertEqual("data", Result#xmlelement.name),
    ?_assertEqual("foo:bar", proplists:get_value("token", Result#xmlelement.attrs)),
    ?_assertEqual(ExpectedSubEls, length(Result#xmlelement.sub_el)),
    ?_assertEqual({xmlelement, "iq", [{"type", "result"}, {"xml:lang", "en"}, {"id", "42"}],

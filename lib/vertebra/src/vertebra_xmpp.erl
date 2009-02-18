@@ -73,7 +73,7 @@ get_token({xmlelement, _, _, Subels}) ->
 
 get_token([{xmlelement, Name, Attrs, _}|_T]) when Name =:= "op";
                                                   Name =:= "ack";
-                                                  Name =:= "result";
+                                                  Name =:= "data";
                                                   Name =:= "final" ->
   case proplists:get_value("token", Attrs) of
     undefined ->

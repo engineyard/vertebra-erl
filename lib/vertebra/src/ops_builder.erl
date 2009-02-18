@@ -55,11 +55,10 @@ final_op(Token) ->
 
 result_op({xmlelement, "list", _, _} = Results, Token) ->
   Attrs = [{"token", Token}, {"xmlns", ?AGENT_NS}],
-  {xmlelement, "result", Attrs, [Results]};
-
+  {xmlelement, "data", Attrs, [Results]};
 result_op(Results, Token) when is_list(Results) ->
   Attrs = [{"token", Token}, {"xmlns", ?AGENT_NS}],
-  {xmlelement, "result", Attrs, build_subels(Results, [])};
+  {xmlelement, "data", Attrs, build_subels(Results, [])};
 result_op(Results, Token) ->
   result_op([Results], Token).
 
