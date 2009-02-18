@@ -21,19 +21,19 @@
 -include_lib("eunit/include/eunit.hrl").
 
 valid_cancel_op_test_() ->
-  [{setup, fun() -> ops_builder:error_op("cancel", "must retry", "foo:bar") end,
+  [{setup, fun() -> ops_builder:error("cancel", "must retry", "foo:bar") end,
     fun(ErrOp) ->
 	generate_valid_cancel_op_tests(ErrOp) end}].
 
 
-valid_error_op_test_() ->
-  [{setup, fun() -> ops_builder:error_op("something bad", "foo:bar") end,
+valid_error_test_() ->
+  [{setup, fun() -> ops_builder:error("something bad", "foo:bar") end,
     fun(ErrOp) ->
-	generate_valid_error_op_tests(ErrOp) end}].
+	generate_valid_error_tests(ErrOp) end}].
 
-valid_ack_op_test_() ->
-  [{setup, fun() -> ops_builder:ack_op("foo:bar") end,
-    fun generate_valid_ack_op_tests/1}].
+valid_ack_test_() ->
+  [{setup, fun() -> ops_builder:ack("foo:bar") end,
+    fun generate_valid_ack_tests/1}].
 
 valid_partial_data_test_() ->
   [{setup, fun() -> ops_builder:data([], "foo:bar") end,
@@ -64,7 +64,7 @@ generate_valid_result_tests(_Type, Result, ExpectedSubEls) ->
    ?_assertEqual({xmlelement, "iq", [{"type", "result"}, {"xml:lang", "en"}, {"id", "42"}],
                   [Result]}, ops_builder:finalize(Result, "result", "42"))].
 
-generate_valid_ack_op_tests(Ack) ->
+generate_valid_ack_tests(Ack) ->
   [?_assertEqual("ack", Ack#xmlelement.name),
    ?_assertEqual("foo:bar", proplists:get_value("token", Ack#xmlelement.attrs)),
    ?_assertEqual(0, length(Ack#xmlelement.sub_el)),
@@ -81,7 +81,7 @@ generate_valid_cancel_op_tests(Error) ->
 		  [{xmlcdata, <<"must retry">>}]}], Error#xmlelement.sub_el)].
 
 
-generate_valid_error_op_tests(Error) ->
+generate_valid_error_tests(Error) ->
   [?_assertEqual("error", Error#xmlelement.name),
    ?_assertEqual("foo:bar", proplists:get_value("token", Error#xmlelement.attrs)),
    ?_assertEqual("error", proplists:get_value("type", Error#xmlelement.attrs)),

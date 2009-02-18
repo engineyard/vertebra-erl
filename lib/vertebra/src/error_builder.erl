@@ -46,7 +46,7 @@
                              "cancel"]}].
 
 vert_error(Message, {From, Id, StanzaType}, Token, To) ->
-  VertError = ops_builder:error_op(Message, Token),
+  VertError = ops_builder:error(Message, Token),
   IQ = ops_builder:finalize(VertError, StanzaType, Id),
   NewIQ = case From of
             undefined ->

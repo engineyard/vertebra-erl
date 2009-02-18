@@ -17,7 +17,7 @@
 
 -module(ops_builder).
 
--export([generic_op/1, nack_op/1, ack_op/1, final_op/1, data/2, error_op/2, error_op/3, finalize/3]).
+-export([op/1, nack/1, ack/1, final/1, data/2, error/2, error/3, finalize/3]).
 
 -export([make_resource_list/1]).
 
@@ -32,24 +32,24 @@ finalize(Op, OpType, Id) when OpType == "get" orelse
            {"id", Id}],
   #xmlelement{name="iq", attrs=Attrs, sub_el=[Op]}.
 
-error_op(Reason, Token) when is_list(Reason) ->
-  error_op("error", Reason, Token).
+error(Reason, Token) when is_list(Reason) ->
+  error("error", Reason, Token).
 
-error_op(Type, Reason, Token) when is_list(Reason) ->
+error(Type, Reason, Token) when is_list(Reason) ->
   {ok, ReasonEl} = xml_util:convert(to, {string, [{"name", "reason"}], list_to_binary(Reason)}),
   #xmlelement{name="error", attrs=[{"token", Token},
                                    {"xmlns", ?AGENT_NS},
                                    {"type", Type}], sub_el=[ReasonEl]}.
 
-ack_op(Token) ->
+ack(Token) ->
   #xmlelement{name="ack", attrs=[{"token",Token},
                                  {"xmlns", ?AGENT_NS}], sub_el=[]}.
 
-nack_op(Token) ->
+nack(Token) ->
   #xmlelement{name="nack", attrs=[{"token",Token},
                                   {"xmlns", ?AGENT_NS}], sub_el=[]}.
 
-final_op(Token) ->
+final(Token) ->
   #xmlelement{name="final", attrs=[{"token",Token},
                                    {"xmlns", ?AGENT_NS}], sub_el=[]}.
 
@@ -63,12 +63,12 @@ data(Results, Token) ->
   data([Results], Token).
 
 %%
-%% generic_op({OpName, SubEls}) -> #xmlelement
+%% op({OpName, SubEls}) -> #xmlelement
 %% OpName -> string
 %% SubEls -> [SubEl]
 %% SubEl -> {Name, Attrs, [SubEl] | []} | {text, Text}
 %%
-generic_op({OpName, Token, SubEls}) ->
+op({OpName, Token, SubEls}) ->
   Attrs = [{"type", OpName}, {"token", Token}, {"xmlns", ?AGENT_NS}],
   #xmlelement{name="op", attrs=Attrs, sub_el=build_subels(SubEls, [])}.
 

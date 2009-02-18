@@ -68,7 +68,7 @@ get_connection_info(ServerPid) ->
 
 send_error(ServerPid, To, Token, Error) ->
   XMPP = get_connection_info(ServerPid),
-  ErrStanza = ops_builder:error_op(Error, Token),
+  ErrStanza = ops_builder:error(Error, Token),
   RetryFun = fun() -> vertebra_xmpp:send_wait_set(XMPP, {}, To, ErrStanza) end,
   transmit(ServerPid, XMPP, {RetryFun, To}).
 
@@ -80,7 +80,7 @@ send_result(ServerPid, To, Token, Result) ->
 
 end_result(ServerPid, To, Token) ->
   XMPP = get_connection_info(ServerPid),
-  Final = ops_builder:final_op(Token),
+  Final = ops_builder:final(Token),
   RetryFun = fun() -> vertebra_xmpp:send_wait_set(XMPP, {}, To, Final) end,
   transmit(ServerPid, XMPP, {RetryFun, To}).
 
@@ -251,8 +251,8 @@ run_callback(ServerPid, ServerState, From, Token, Op) ->
   catch
     error:undef ->
       Error = lists:flatten(["No handler for op: ", OpName]),
-      vertebra_xmpp:send_wait_set(ServerState#state.xmpp, {}, From, op_builder:error_op("fatal", Error, Token)),
-      vertebra_xmpp:send_wait_set(ServerState#state.xmpp, {}, From, ops_builder:final_op(Token))
+      vertebra_xmpp:send_wait_set(ServerState#state.xmpp, {}, From, op_builder:error("fatal", Error, Token)),
+      vertebra_xmpp:send_wait_set(ServerState#state.xmpp, {}, From, ops_builder:final(Token))
   end.
 
 find_vertebra_element([{xmlelement, Name, _, _}=H|_T]) when Name =:= "op";
