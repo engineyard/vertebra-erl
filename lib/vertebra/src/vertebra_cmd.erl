@@ -106,7 +106,7 @@ handle_call(_Request, _From, State) ->
 
 handle_cast({execute, Client}, State) ->
   Me = self(),
-  Op = ops_builder:op({State#state.op,
+  Op = vertebra_protocol:op({State#state.op,
                        string:join(State#state.start_token, ":"),
                        State#state.inputs}),
   case vertebra_xmpp:send_wait_set(State#state.connection, ?ERROR_TRACKING_DISABLED, State#state.target, Op) of

@@ -46,8 +46,8 @@
                              "cancel"]}].
 
 vert_error(Message, {From, Id, StanzaType}, Token, To) ->
-  VertError = ops_builder:error(Message, Token),
-  IQ = ops_builder:finalize(VertError, StanzaType, Id),
+  VertError = vertebra_protocol:error(Message, Token),
+  IQ = vertebra_protocol:finalize(VertError, StanzaType, Id),
   NewIQ = case From of
             undefined ->
               IQ;

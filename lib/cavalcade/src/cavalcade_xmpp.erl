@@ -44,9 +44,9 @@ confirm_op(XMPP, From, Op, Token, PacketId, IsAck) ->
       send_result(XMPP, From, PacketId, {xmlelement, Name, dict:to_list(FinalOpAttrs), SubEls}),
       case IsAck of
         true ->
-          send_set(XMPP, From, ops_builder:ack(Token));
+          send_set(XMPP, From, vertebra_protocol:ack(Token));
         false ->
-          send_set(XMPP, From, ops_builder:nack(Token))
+          send_set(XMPP, From, vertebra_protocol:nack(Token))
       end
   end.
 

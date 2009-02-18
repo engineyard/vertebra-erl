@@ -53,14 +53,14 @@ confirm_op(XMPP, TrackInfo, From, Op, Token, PacketId, IsAck) ->
       send_result(XMPP, TrackInfo, PacketId, From, {xmlelement, Name, dict:to_list(FinalOpAttrs), SubEls}),
       case IsAck of
         true ->
-          case send_wait_set(XMPP, TrackInfo, From, ops_builder:ack(Token)) of
+          case send_wait_set(XMPP, TrackInfo, From, vertebra_protocol:ack(Token)) of
             {ok, Reply} ->
               {ok, get_token(Reply)};
             Error ->
               Error
           end;
         false ->
-          send_wait_set(XMPP, TrackInfo, From, ops_builder:nack(Token))
+          send_wait_set(XMPP, TrackInfo, From, vertebra_protocol:nack(Token))
       end
   end.
 

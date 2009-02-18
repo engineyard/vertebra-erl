@@ -15,7 +15,7 @@
 % You should have received a copy of the GNU Lesser General Public License
 % along with Vertebra.  If not, see <http://www.gnu.org/licenses/>.
 
--module(ops_builder).
+-module(vertebra_protocol).
 
 -export([op/1, nack/1, ack/1, final/1, data/2, error/2, error/3, finalize/3]).
 

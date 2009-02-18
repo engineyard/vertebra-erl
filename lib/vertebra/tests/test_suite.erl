@@ -22,7 +22,7 @@
 all_test_() ->
   [{module, test_xml_util},
    {module, test_uuid},
-   {module, test_ops_builder},
+   {module, test_vertebra_protocol},
    {module, test_vertebra_xmpp},
    {module, test_vertebra_inspector_config},
    {module, test_vertebra_util},
