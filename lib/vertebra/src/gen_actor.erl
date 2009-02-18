@@ -74,7 +74,7 @@ send_error(ServerPid, To, Token, Error) ->
 
 send_result(ServerPid, To, Token, Result) ->
   XMPP = get_connection_info(ServerPid),
-  ResultStanza = ops_builder:result_op(Result, Token),
+  ResultStanza = ops_builder:data(Result, Token),
   RetryFun = fun() -> vertebra_xmpp:send_wait_set(XMPP, {}, To, ResultStanza) end,
   transmit(ServerPid, XMPP, {RetryFun, To}).
 

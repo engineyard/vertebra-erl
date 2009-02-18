@@ -35,25 +35,25 @@ valid_ack_op_test_() ->
   [{setup, fun() -> ops_builder:ack_op("foo:bar") end,
     fun generate_valid_ack_op_tests/1}].
 
-valid_partial_result_op_test_() ->
-  [{setup, fun() -> ops_builder:result_op([], "foo:bar") end,
+valid_partial_data_test_() ->
+  [{setup, fun() -> ops_builder:data([], "foo:bar") end,
     fun(Op) ->
 	generate_valid_result_tests("partial", Op, 0) end}].
 
-valid_final_result_op_test_() ->
-  [{setup, fun() -> ops_builder:result_op([], "foo:bar") end,
+valid_final_data_test_() ->
+  [{setup, fun() -> ops_builder:data([], "foo:bar") end,
     fun(Op) ->
 	generate_valid_result_tests("partial", Op, 0) end}].
 
-valid_list_result_op_test_() ->
-  [{setup, fun() -> ops_builder:result_op({xmlelement, "list", [{"name", "resources"}],
+valid_list_data_test_() ->
+  [{setup, fun() -> ops_builder:data({xmlelement, "list", [{"name", "resources"}],
 					   [{xmlelement, "res", [], [{xmlcdata, <<"/cluster/rd00">>}]}]}, "foo:bar") end,
     fun(Op) ->
 	generate_valid_result_tests("partial", Op, 1) end}].
 
 non_list_result_test_() ->
   [{setup,
-    fun() -> ops_builder:result_op({xmlelement, "string", [], [{xmlcdata, <<"/cluster/rd00">>}]}, "foo:bar") end,
+    fun() -> ops_builder:data({xmlelement, "string", [], [{xmlcdata, <<"/cluster/rd00">>}]}, "foo:bar") end,
     fun(Op) ->
 	generate_valid_result_tests("partial", Op, 1) end}].
 

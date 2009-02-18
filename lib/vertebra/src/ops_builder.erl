@@ -17,7 +17,7 @@
 
 -module(ops_builder).
 
--export([generic_op/1, nack_op/1, ack_op/1, final_op/1, result_op/2, error_op/2, error_op/3, finalize/3]).
+-export([generic_op/1, nack_op/1, ack_op/1, final_op/1, data/2, error_op/2, error_op/3, finalize/3]).
 
 -export([make_resource_list/1]).
 
@@ -53,14 +53,14 @@ final_op(Token) ->
   #xmlelement{name="final", attrs=[{"token",Token},
                                    {"xmlns", ?AGENT_NS}], sub_el=[]}.
 
-result_op({xmlelement, "list", _, _} = Results, Token) ->
+data({xmlelement, "list", _, _} = Results, Token) ->
   Attrs = [{"token", Token}, {"xmlns", ?AGENT_NS}],
   {xmlelement, "data", Attrs, [Results]};
-result_op(Results, Token) when is_list(Results) ->
+data(Results, Token) when is_list(Results) ->
   Attrs = [{"token", Token}, {"xmlns", ?AGENT_NS}],
   {xmlelement, "data", Attrs, build_subels(Results, [])};
-result_op(Results, Token) ->
-  result_op([Results], Token).
+data(Results, Token) ->
+  data([Results], Token).
 
 %%
 %% generic_op({OpName, SubEls}) -> #xmlelement
