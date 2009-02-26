@@ -53,7 +53,14 @@ ARGS=${ARGS#${CMD} *}
 NAME=-name
 [ "$ERLANG_NODE" == "${ERLANG_NODE%.*}" ] && NAME=-sname
 
-START_OPTS="$OPTS \
+# Sort out SMP settings
+case "$HAVE_SMP" in
+	"1"|"true"|"yes") SMPOPT="enable" ;;
+    *) SMPOPT="disable"	;;
+esac
+
+START_OPTS="$ERLANG_OPTS \
+  -smp $SMPOPT
   -boot start_sasl \
   -mnesia dir "\"$MNESIA_DIR\"" \
   -s mnesia \

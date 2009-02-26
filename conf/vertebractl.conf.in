@@ -1,3 +1,21 @@
 # Add the vertebra library directory to the list of directories Erlang will
 # search for libraries.
 ERL_LIBS=@vertebra_libdir@:@erlang_libdir@
+
+# Name of your ejabberd node. Used by ejabberdctl to determine which
+# node to communicate with.
+ERLANG_NODE="$APP@`hostname -s`"
+
+# Location of the mnesia database.
+MNESIA_DIR=@localstatedir@/spool/vertebra/$APP
+
+# Location of the SASL log file.
+SASL_LOG=@localstatedir@/log/vertebra/$APP_sasl.log
+
+# set to 1, "true" or "yes" if you have a symmetric-multi-processor
+# default is non smp
+#HAVE_SMP=0
+
+# Additional options to pass to Erlang
+ERL_OPTIONS=
+
