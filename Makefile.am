@@ -4,7 +4,7 @@ bin_SCRIPTS = bin/vertebractl
 vertebra_conf_DATA = conf/vertebractl.conf
 include vars.mk
 
-CLEANFILES = $(bin_SCRIPTS)
+CLEANFILES = $(bin_SCRIPTS) $(vertebra_conf_DATA)
 EXTRA_DIST = conf src
 
 export ERL_LIBS = $(abs_srcdir)/lib
