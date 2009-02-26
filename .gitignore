@@ -14,3 +14,4 @@ missing
 bin/vertebractl
 conf/vertebractl.conf
 .DS_Store
+.*.swp
