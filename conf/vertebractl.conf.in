@@ -10,7 +10,7 @@ ERLANG_NODE="$APP@`hostname -s`"
 MNESIA_DIR=@localstatedir@/spool/vertebra/$APP
 
 # Location of the SASL log file.
-SASL_LOG=@localstatedir@/log/vertebra/$APP_sasl.log
+SASL_LOG=@localstatedir@/log/vertebra/${APP}_sasl.log
 
 # set to 1, "true" or "yes" if you have a symmetric-multi-processor
 # default is non smp
