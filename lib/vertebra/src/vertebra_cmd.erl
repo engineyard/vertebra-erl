@@ -132,7 +132,7 @@ handle_info({packet, {xmlelement, "iq", Attrs, [{xmlelement, "final", _, _}=Stan
                                 ?ERROR_TRACKING_DISABLED,
                                 proplists:get_value("id", Attrs),
                                 From,
-                                Stanza),
+                                prepare_result_stanza(Stanza)),
   #state{client={pid, ClientRef}} = State,
   ClientRef ! {xmpp_command_result, From, lists:flatten(State#state.results)},
   {stop, normal, State};
@@ -140,10 +140,10 @@ handle_info({packet, {xmlelement, "iq", Attrs, [{xmlelement, "final", _, _}=Stan
 handle_info({packet, {xmlelement, "iq", Attrs, [{xmlelement, "error", _, [Reason]}=Stanza]}}, State) ->
   From = proplists:get_value("from", Attrs),
   vertebra_xmpp:send_result(State#state.connection,
-                                ?ERROR_TRACKING_DISABLED,
-                                proplists:get_value("id", Attrs),
-                                From,
-                                Stanza),
+                            ?ERROR_TRACKING_DISABLED,
+                            proplists:get_value("id", Attrs),
+                            From,
+                            prepare_result_stanza(Stanza)),
   #state{client={pid, ClientRef}} = State,
   {ok, {string, ReasonDesc}} = xml_util:convert(from, Reason),
   ClientRef ! {xmpp_command_result, From, {error, ReasonDesc}},
@@ -152,10 +152,10 @@ handle_info({packet, {xmlelement, "iq", Attrs, [{xmlelement, "error", _, [Reason
 
 handle_info({packet, {xmlelement, "iq", Attrs, [{xmlelement, "data", _, Results}=Result]}}, State) ->
     vertebra_xmpp:send_result(State#state.connection,
-                                ?ERROR_TRACKING_DISABLED,
-                                proplists:get_value("id", Attrs),
-                                proplists:get_value("from", Attrs),
-                                Result),
+                              ?ERROR_TRACKING_DISABLED,
+                              proplists:get_value("id", Attrs),
+                              proplists:get_value("from", Attrs),
+                              prepare_result_stanza(Result)),
   {noreply, State#state{results=[Results|State#state.results]}};
 
 handle_info({packet, {xmlelement, "iq", Attrs, [{xmlelement, "ack", _, _}=Ack]}}, State) ->
@@ -193,3 +193,6 @@ handle_reply(Reply) ->
     Result ->
       Result
   end.
+
+prepare_result_stanza({xmlelement, Type, Attrs, _}) ->
+  {xmlelement, Type, Attrs, []}.
