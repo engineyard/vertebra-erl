@@ -117,6 +117,17 @@ build_resources([], Accum) ->
   lists:reverse(Accum).
 
 new_packet_id() ->
-  {T1, T2, T3} = erlang:now(),
-  random:seed(T1, T2, T3),
-  integer_to_list(random:uniform(?MAX_PACKET_ID)).
+  PrevId = erlang:get(vertebra_iq_id),
+  Id = crypto:rand_uniform(1, ?MAX_PACKET_ID),
+  if
+    PrevId =:= undefined ->
+      erlang:store(vertebra_iq_id, Id),
+      Id;
+    true ->
+      if
+        PrevId == Id ->
+          new_packet_id();
+        true ->
+        erlang:store(vertebra_iq_id, Id)
+      end
+  end.

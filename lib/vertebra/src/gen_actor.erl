@@ -94,6 +94,7 @@ stop(ServerPid) ->
   gen_server:cast(ServerPid, stop).
 
 init([Config, CallbackModule]) ->
+  crypto:start_link(),
   {ok, Cn} = case proplists:get_value(fuzzer, Config) of
                undefined ->
                  natter_connection:start_link(Config);
@@ -308,7 +309,7 @@ find_duplicate(Fingerprint, [], State) ->
   {false, State#state{packet_fingerprints=[Fingerprint|State#state.packet_fingerprints]}}.
 
 %% START HERE
-clear_duplicate(ServerPid, To, {xmlelement, "iq", Attrs, _SubEls}) ->
+clear_duplicate(ServerPid, To, {xmlelement, "iq", _Attrs, _SubEls}) ->
   %Id = proplists:get_value("id", Attrs),
   %XMPP = get_connection_info(ServerPid),
   %natter_connection:send_iq(XMPP, "error", Id, To, natter_parser:element_to_string(?BAD_PACKET_ERR)).
