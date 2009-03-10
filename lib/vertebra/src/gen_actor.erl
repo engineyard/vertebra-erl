@@ -94,7 +94,7 @@ stop(ServerPid) ->
   gen_server:cast(ServerPid, stop).
 
 init([Config, CallbackModule]) ->
-  crypto:start_link(),
+  application:start(crypto),
   {ok, Cn} = case proplists:get_value(fuzzer, Config) of
                undefined ->
                  natter_connection:start_link(Config);
