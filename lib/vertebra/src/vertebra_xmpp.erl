@@ -120,14 +120,9 @@ new_packet_id() ->
   PrevId = erlang:get(vertebra_iq_id),
   Id = crypto:rand_uniform(1, ?MAX_PACKET_ID),
   if
-    PrevId =:= undefined ->
-      erlang:store(vertebra_iq_id, Id),
-      Id;
+    PrevId =:= Id ->
+      new_packet_id();
     true ->
-      if
-        PrevId == Id ->
-          new_packet_id();
-        true ->
-        erlang:store(vertebra_iq_id, Id)
-      end
+      erlang:put(vertebra_iq_id, Id),
+      Id
   end.
