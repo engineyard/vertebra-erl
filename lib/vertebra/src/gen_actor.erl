@@ -305,8 +305,14 @@ find_duplicate(Fingerprint, [Fingerprint|_T], State) ->
   {true, State};
 find_duplicate(Fingerprint, [_|T], State) ->
   find_duplicate(Fingerprint, T, State);
-find_duplicate(Fingerprint, [], State) ->
-  {false, State#state{packet_fingerprints=[Fingerprint|State#state.packet_fingerprints]}}.
+find_duplicate(Fingerprint, [], #state{packet_fingerprints=Fingerprints}=State) ->
+  UpdatedFingerprints = case length(Fingerprints) of
+                          5 ->
+                            lists:reverse(lists:nthtail(1, lists:reverse(Fingerprints)));
+                          _ ->
+                            Fingerprints
+                        end,
+  {false, State#state{packet_fingerprints=[Fingerprint|UpdatedFingerprints]}}.
 
 %% START HERE
 clear_duplicate(ServerPid, To, {xmlelement, "iq", _Attrs, _SubEls}) ->

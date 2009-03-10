@@ -20,11 +20,14 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, generate_uuid/0, cache_size/0, uuid_generator/1, uuid_generator/2, shutdown/0]).
+-export([start_link/0, generate_uuid/0, new_stanza_id/0]).
+-export([cache_size/0, uuid_generator/1, uuid_generator/2, shutdown/0]).
 
 -define(SERVER, ?MODULE).
 -define(CACHE_SIZE, 100).
 -define(REFILL_THRESHOLD, 10).
+-define(MAX_STARTING_PACKET_ID, 1000).
+-define(MAX_PACKET_ID, 1000000).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -41,6 +44,10 @@ generate_uuid() ->
 cache_size() ->
   conditional_start(),
   gen_server:call({global, ?SERVER}, cache_size).
+
+new_stanza_id() ->
+  conditional_start(),
+  gen_server:call({global, ?SERVER}, new_stanza_id).
 
 shutdown() ->
   gen_server:call({global, ?SERVER}, shutdown).
@@ -81,6 +88,9 @@ init([]) ->
 %%--------------------------------------------------------------------
 handle_call(shutdown, _From, State) ->
   {stop, normal, State};
+
+handle_call(new_stanza_id, _From, State) ->
+  {reply, new_packet_id(), State};
 
 handle_call(cache_size, _From, State) ->
   {reply, length(State#state.cache), State};
@@ -169,27 +179,27 @@ uuid_generator(Count, Accum) ->
   uuid_generator(Count - 1, lists:append(Accum, [gen()])).
 
 %%-------------------------------------------------
-                                                %
-                                                % gen() -> uid
-                                                %
-                                                % uid -> string (32 chars long)
-                                                %
-                                                % TODO: Add a node component to the uuid
-                                                %       to guarantee uniqueness across hosts
+%
+% gen() -> uid
+%
+% uid -> string (32 chars long)
+%
+% TODO: Add a node component to the uuid
+%       to guarantee uniqueness across hosts
 %%-------------------------------------------------
 gen() ->
-                                                % Figure out how many bytes to randomly skip
+  % Figure out how many bytes to randomly skip
   SkipSize = round_to_byte(crypto:rand_uniform(0, 32)),
 
-                                                % Determine the number of bytes needed to generate this uuid
+  % Determine the number of bytes needed to generate this uuid
   PoolSize = round((96 + (SkipSize * 2)) / 8),
   Pool = crypto:rand_bytes(PoolSize),
 
-                                                % Extract the first, middle, last chunks of the uuid from the pool
-                                                % making sure to skip where needed
+  % Extract the first, middle, last chunks of the uuid from the pool
+  % making sure to skip where needed
   <<F:32/integer,_:SkipSize,M:32/integer,_:SkipSize,L:32/integer>> = Pool,
 
-                                                % Convert all the chunks and the current timestamp to a uuid
+  % Convert all the chunks and the current timestamp to a uuid
   lists:flatten(to_hex(F) ++ to_hex(M) ++ to_hex(L) ++ get_time()).
 
 round_to_byte(N) ->
@@ -220,4 +230,21 @@ conditional_start() ->
       uuid_server:start_link();
     _ ->
       ok
+  end.
+
+new_packet_id() ->
+  case erlang:get(vertebra_iq_id) of
+    undefined ->
+      Id = crypto:rand_uniform(1, ?MAX_STARTING_PACKET_ID),
+      erlang:put(vertebra_iq_id, Id),
+      integer_to_list(Id);
+    Value ->
+      Id = Value + 1,
+      if
+        Id > ?MAX_PACKET_ID ->
+          new_packet_id();
+        true ->
+          erlang:put(vertebra_iq_id, Id),
+          integer_to_list(Id)
+      end
   end.

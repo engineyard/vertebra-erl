@@ -17,7 +17,6 @@
 
 -module(vertebra_xmpp).
 
--define(MAX_PACKET_ID, 1000000).
 -define(ILLEGAL_REPLY_ERR, {xmlelement, "error", [{"code", "406"}], [{xmlcdata, <<"Packet type not acceptable reply">>}]}).
 -define(SEND_TIMEOUT, 120000).
 
@@ -29,13 +28,13 @@ send_set(XMPP, TrackInfo, To, Body) when is_tuple(TrackInfo), is_tuple(Body) ->
   send_set(XMPP, TrackInfo, To, natter_parser:element_to_string(Body));
 
 send_set(XMPP, TrackInfo, To, Body) when is_tuple(TrackInfo), is_list(Body) ->
-  natter_connection:send_iq(XMPP, "set", new_packet_id(), To, Body).
+  natter_connection:send_iq(XMPP, "set", uuid_server:new_stanza_id(), To, Body).
 
 send_wait_set(XMPP, TrackInfo, To, Body) when is_tuple(TrackInfo), is_tuple(Body) ->
   send_wait_set(XMPP, TrackInfo, To, natter_parser:element_to_string(Body));
 
 send_wait_set(XMPP, TrackInfo, To, Body) when is_tuple(TrackInfo), is_list(Body) ->
-  case natter_connection:send_wait_iq(XMPP, "set", new_packet_id(), To, Body, ?SEND_TIMEOUT) of
+  case natter_connection:send_wait_iq(XMPP, "set", uuid_server:new_stanza_id(), To, Body, ?SEND_TIMEOUT) of
     {error, timeout} ->
       send_wait_set(XMPP, TrackInfo, To, Body);
     Value ->
@@ -115,14 +114,3 @@ build_resources([H|T], Accum) when is_binary(H) ->
   build_resources(T, [{resource, [{"name", binary_to_list(H)}], H}|Accum]);
 build_resources([], Accum) ->
   lists:reverse(Accum).
-
-new_packet_id() ->
-  PrevId = erlang:get(vertebra_iq_id),
-  Id = crypto:rand_uniform(1, ?MAX_PACKET_ID),
-  if
-    PrevId =:= Id ->
-      new_packet_id();
-    true ->
-      erlang:put(vertebra_iq_id, Id),
-      integer_to_list(Id)
-  end.
