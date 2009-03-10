@@ -124,5 +124,5 @@ new_packet_id() ->
       new_packet_id();
     true ->
       erlang:put(vertebra_iq_id, Id),
-      Id
+      integer_to_list(Id)
   end.
