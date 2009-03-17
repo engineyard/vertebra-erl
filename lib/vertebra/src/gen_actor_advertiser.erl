@@ -14,9 +14,18 @@
 %
 % You should have received a copy of the GNU Lesser General Public License
 % along with Vertebra.  If not, see <http://www.gnu.org/licenses/>.
+
+% This gen_server is responsible for periodically re-advertising resources to Herault.
+% This behavior insures active resources do not "age out" of Herault's databases when
+% their TTLs expire.
+%
+% It also provides convenience functions to allow agents to add and remove advertised
+% resources on the fly.
 -module(gen_actor_advertiser).
 
 -behaviour(gen_server).
+
+-include("typespecs.hrl").
 
 -define(FUDGE_FACTOR, 300).
 
@@ -37,15 +46,23 @@
 start_link(Config, Resources, AdvertiseInterval) ->
   gen_server:start_link(?MODULE, [Config, Resources, AdvertiseInterval], []).
 
+%% Advertise a new resource using the existing TTL
+-spec(add_resources/2 :: (AdvertiserPid :: pid(), Resources :: [resource()] | []) -> ok | {error, any()}).
 add_resources(AdvertiserPid, Resources) ->
   gen_server:cast(AdvertiserPid, {add, Resources}).
 
+%% Remove a resource advertisement
+-spec(remove_resources/2 :: (AdvertiserPid :: pid(), Resources :: [resource()] | []) -> ok | {error, any()}).
 remove_resources(AdvertiserPid, Resources) ->
   gen_server:cast(AdvertiserPid, {remove, Resources}).
 
+% Refresh existing advertisements
+-spec(readvertise/1 :: (AdvertiserPid :: pid()) -> ok | {error, any()}).
 readvertise(AdvertiserPid) ->
   gen_server:cast(AdvertiserPid, readvertise).
 
+% Gracefully stop the advertiser
+-spec(stop/1 :: (AdvertiserPid :: pid()) -> any()).
 stop(AdvertiserPid) ->
   gen_server:cast(AdvertiserPid, stop).
 

@@ -15,9 +15,14 @@
 % You should have received a copy of the GNU Lesser General Public License
 % along with Vertebra.  If not, see <http://www.gnu.org/licenses/>.
 
+% Generic behavior useful for implementing Vertebra actors in Erlang.
+% This module wraps all the underlying Vertebra details (IQ set/results,
+% acking/nacking, etc) and presents a simple API for writing actors.
 -module(gen_actor).
 
 -behaviour(gen_server).
+
+-include("typespecs.hrl").
 
 -define(DEFAULT_TTL, 3600).
 
@@ -60,33 +65,52 @@ start_link(NameScope, Config, CallbackModule) when is_tuple(NameScope),
                                                    is_atom(CallbackModule) ->
   gen_server:start_link(NameScope, ?MODULE, [Config, CallbackModule], []).
 
+% Has the actor seen this stanza before?
+% This is typically called from the process dispatching the incoming request
+-spec(is_duplicate/2 :: (ServerPid :: pid(), Stanza :: xmlelement()) -> true | false).
 is_duplicate(ServerPid, Stanza) ->
   gen_server:call(ServerPid, {is_duplicate, Stanza}).
 
+% Retrieve the XMPP connection for this agent
+-spec(get_connection_info/1 :: (ServerPid :: pid()) -> pid()).
 get_connection_info(ServerPid) ->
   gen_server:call(ServerPid, get_xmpp_connection_info).
 
+% These functions are used by actors
+
+% Send a Vertebra error to a client
+-spec(send_error/4 :: (SeverPid :: pid(), To :: string(), Token :: string(), Error :: string()) -> ok | {error, any()}).
 send_error(ServerPid, To, Token, Error) ->
   XMPP = get_connection_info(ServerPid),
   ErrStanza = vertebra_protocol:error(Error, Token),
   RetryFun = fun() -> vertebra_xmpp:send_wait_set(XMPP, {}, To, ErrStanza) end,
   transmit(ServerPid, XMPP, {RetryFun, To}).
 
+% Send a single Vertebra data stanza
+-spec(send_result/4 :: (ServerPid :: pid(), To :: string(), Token :: string(), Result :: any()) -> ok | {error, any()}).
 send_result(ServerPid, To, Token, Result) ->
   XMPP = get_connection_info(ServerPid),
   ResultStanza = vertebra_protocol:data(Result, Token),
   RetryFun = fun() -> vertebra_xmpp:send_wait_set(XMPP, {}, To, ResultStanza) end,
   transmit(ServerPid, XMPP, {RetryFun, To}).
 
+% Send Vertebra final stanza
+-spec(end_result/3 :: (ServerPid :: pid(), To :: string(), Token :: string()) -> ok | {error, any()}).
 end_result(ServerPid, To, Token) ->
   XMPP = get_connection_info(ServerPid),
   Final = vertebra_protocol:final(Token),
   RetryFun = fun() -> vertebra_xmpp:send_wait_set(XMPP, {}, To, Final) end,
   transmit(ServerPid, XMPP, {RetryFun, To}).
 
+% Adds a resource advertisement at runtime
+% Delegates to the advertiser module
+-spec(add_resources/2 :: (ServerPid :: pid(), Resources :: [resource()] | []) -> ok | {error, any()}).
 add_resources(ServerPid, Resources) ->
   gen_server:call(ServerPid, {add_resources, Resources}).
 
+% Removes a resource advertisement at runtime
+% Delegates to the advertiser module
+-spec(remove_resources/2 :: (ServerPid :: pid(), Resources :: [resource()] | []) -> ok | {error, any()}).
 remove_resources(ServerPid, Resources) ->
   gen_server:call(ServerPid, {remove_resources, Resources}).
 
@@ -314,9 +338,8 @@ find_duplicate(Fingerprint, [], #state{packet_fingerprints=Fingerprints}=State) 
                         end,
   {false, State#state{packet_fingerprints=[Fingerprint|UpdatedFingerprints]}}.
 
-%% START HERE
+%% TODO: Implement actions necessary to "clear" the duplicate
+%% stanza sent by the caller. For more details, see Jay and/or
+%% Sam.
 clear_duplicate(ServerPid, To, {xmlelement, "iq", _Attrs, _SubEls}) ->
-  %Id = proplists:get_value("id", Attrs),
-  %XMPP = get_connection_info(ServerPid),
-  %natter_connection:send_iq(XMPP, "error", Id, To, natter_parser:element_to_string(?BAD_PACKET_ERR)).
   false.

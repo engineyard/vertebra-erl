@@ -17,21 +17,33 @@
 
 -module(advertiser).
 
+-include("typespecs.hrl").
+
 -define(DEFAULT_TTL, 3600).
 
 -export([advertise/2, advertise/3, unadvertise/2, unadvertise/3]).
 
+%% Advertise resources with the default TTL of 1 hour
+-spec(advertise/2 :: (Config :: proplist(), Resources :: [resource()] | []) -> ok | {error, any()}).
 advertise(Config, Resources) ->
   advertise(Config, Resources, ?DEFAULT_TTL).
 
+%% Advertise resources with a custom TTTL
+-spec(advertise/3 :: (Config :: proplist(), Resources :: [resource()] | [], TTL :: integer()) -> ok | {error, any()}).
 advertise(Config, Resources, TTL) ->
   execute_command("/security/advertise", Config, Resources, TTL).
 
+%% Unadvertise a set of resources
+-spec(unadvertise/2 :: (Config :: proplist(), Resources :: [resource()] | []) -> ok | {error, any()}).
 unadvertise(Config, Resources) ->
   unadvertise(Config, Resources, ?DEFAULT_TTL).
 
+%% Unadvertises a set of resources with a custom TTL
+-spec(unadvertise/3 :: (Config :: proplist(), Resources :: [resource] | [], TTL :: integer) -> ok | {error, any()}).
 unadvertise(Config, Resources, TTL) ->
   execute_command("/security/unadvertise", Config, Resources, TTL).
+
+%% Internal functions
 
 convert_login(Config) ->
   Token = uuid_server:generate_uuid(),

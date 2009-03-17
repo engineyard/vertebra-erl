@@ -17,8 +17,15 @@
 
 -module(vertebra_error_policy).
 
+-include("typespecs.hrl").
+
+%% This module analyzes XMPP and Vertebra errors and determines what action
+%% should be taken.
+
 -export([analyze/1]).
 
+% Analyze an incoming stanza and determine what action to take
+-spec(analyze/1 :: ({_, _, Attrs :: proplist(), Subels :: list()}) -> ok | wait | cancel | atom()).
 analyze({xmlelement, "iq", Attrs, Subels}) ->
   case proplists:get_value("type", Attrs) of
     "error" ->

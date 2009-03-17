@@ -1,0 +1,5 @@
+-type(proplist() :: [{any(), any()}]).
+-type(resource() :: {resource, proplist(), string()}).
+-type(xml_attr() :: {string(), string()}).
+-type(xml_attrs() :: [xml_attr()] | []).
+-type(xmlelement() :: {'xmlelement', string(), xml_attrs(), [tuple()]}).

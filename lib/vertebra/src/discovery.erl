@@ -17,10 +17,14 @@
 
 -module(discovery).
 
+-include("typespecs.hrl").
+
 -author("ksmith@engineyard.com").
 
 -export([find/3]).
 
+%% Perform discovery against a Herault for the specified resources
+-spec(find/3 :: (Config :: proplist(), HeraultJid :: string(), Resources :: [resource()] | []) -> {ok, list()} | {error, any()}).
 find(Config, HeraultJid, Resources) ->
   Login = convert_login(Config),
   Token = proplists:get_value(resource, Login),
@@ -32,7 +36,7 @@ find(Config, HeraultJid, Resources) ->
       Error
   end.
 
-%% Internal function
+%% Internal functions
 aggregate_results(Results) ->
   aggregate_results(Results, []).
 

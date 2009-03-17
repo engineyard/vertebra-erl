@@ -17,6 +17,8 @@
 
 %% TODO: Implement this for Natter
 
+%% THIS IS DEAD CODE AND SHOULD BE REMOVED FROM THE SOURCE TREE
+
 -module(gen_xmpp_client).
 
 -export([start_link/3, cast/2]).
