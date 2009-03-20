@@ -15,9 +15,6 @@ AC_ERLANG_SUBST_INSTALL_LIB_DIR
 # Output
 AC_CONFIG_FILES([Makefile
                  lib/Makefile
-                 lib/cavalcade/Makefile
-                 lib/cavalcade/src/Makefile
-                 lib/cavalcade/tests/Makefile
                  lib/entrepot/Makefile
                  lib/entrepot/src/Makefile
                  lib/entrepot/tests/Makefile

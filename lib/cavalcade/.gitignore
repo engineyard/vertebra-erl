@@ -1,6 +1,0 @@
-Mnesia*
-project.plt
-eye_build_local.rb
-*.dump
-*.beam
-*.app

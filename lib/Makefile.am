@@ -1,1 +1,1 @@
-SUBDIRS = vertebra herault entrepot cavalcade eye_update
+SUBDIRS = vertebra herault entrepot eye_update
