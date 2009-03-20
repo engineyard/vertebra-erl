@@ -80,13 +80,7 @@ handle_request("/security/discover", State) ->
   TTL = seconds_now(),
   case listing_store:listing_query(lists:map(fun({resource, _Attr, ResName}) -> binary_to_list(ResName) end, Resources), TTL) of
     {ok, Jids} ->
-      %% Ugly hack for now
-      {ok, Result} = case string:str(State#state.from, "cavalcade") > 0 of
-                       true ->
-                         xml_util:convert(to, build_refs(Jids));
-                       false ->
-                         xml_util:convert(to, {list, [{"name", "jids"}], build_refs(Jids)})
-                     end,
+      {ok, Result} = xml_util:convert(to, {list, [{"name", "jids"}], build_refs(Jids)}),
       gen_actor:send_result(State#state.owner, State#state.from, State#state.token, Result);
     _Error ->
       io:format("!! Error (~p: ~p): ~p~n", [?FILE, ?LINE, _Error]),
