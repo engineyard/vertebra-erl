@@ -1,0 +1,17 @@
+Makefile
+Makefile.in
+aclocal.m4
+autom4te.cache
+config.log
+config.status
+configure
+install-sh
+missing
+*.beam
+*.dump
+*.app
+*.plt
+bin/vertebractl
+conf/vertebractl.conf
+.DS_Store
+.*.swp

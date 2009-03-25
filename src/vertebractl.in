@@ -1,0 +1,119 @@
+#!/bin/bash
+
+usage()
+{
+    echo "$(basename $0) app-name [start|stop|live|initdb]"
+    echo "$(basename $0) app-name [started|waitfor] erlang-app"
+}
+
+APP=$1; shift
+
+# Define defaults
+ERL=@ERL@
+[ "$NODE" == "" ] && NODE=$APP
+[ "$HOST" == "" ] && HOST=localhost
+ERLANG_NODE=$NODE@$HOST
+[ "$MNESIA_DIR" == "" ] && MNESIA_DIR=/tmp/mnesia-$ERLANG_NODE
+[ "$SASL_LOG" == "" ] && SASL_LOG=/tmp/${APP}_sasl.log
+
+# Load system defaults
+if [ -r @vertebra_confdir@/vertebractl.conf ]; then
+    . @vertebra_confdir@/vertebractl.conf
+fi
+
+# Parse command line
+ARGS=
+while [ $# -ne 0 ]; do
+    PARAM=$1
+    shift
+    case $PARAM in
+        --) break ;;
+        --config) [ -r $1 ] && . $1; shift ;;
+        --node) ERLANG_NODE=$1; shift ;;
+        --mnesia) MNESIA_DIR=$1 ; shift ;;
+        --sasl-log) SASL_LOG=$1; shift ;;
+        *) ARGS="$ARGS $PARAM" ;;
+    esac
+done
+
+# Strip off leading space
+ARGS=${ARGS/# /}
+# First word is the command
+CMD=${ARGS%% *}
+# Everything after the command are the args
+ARGS=${ARGS#${CMD} *}
+# When $ARGS starts off as just one word, it doesn't split, so if CMD and ARGS
+# are the same, then we just got a command.
+[ "$CMD" == "$ARGS" ] && ARGS=
+
+# If config files defined this, export it so that erlang sees it.
+[ "$ERL_LIBS" == "" ] || export ERL_LIBS
+
+# choose which type of name to set based on nodename
+NAME=-name
+[ "$ERLANG_NODE" == "${ERLANG_NODE%.*}" ] && NAME=-sname
+
+# Sort out SMP settings
+case "$HAVE_SMP" in
+	"1"|"true"|"yes") SMPOPT="enable" ;;
+    *) SMPOPT="disable"	;;
+esac
+
+START_OPTS="$ERLANG_OPTS \
+  -smp $SMPOPT
+  -boot start_sasl \
+  -mnesia dir "\"$MNESIA_DIR\"" \
+  -s mnesia \
+  -s vertebra \
+  -s $APP"
+
+start()
+{
+    if [ ! -d $MNESIA_DIR ]; then
+        initdb
+    fi
+
+    $ERL $NAME $ERLANG_NODE \
+        -noinput -detached \
+        -sasl sasl_error_logger \{file,\"$SASL_LOG\"\} \
+        $START_OPTS $@
+}
+
+initdb()
+{
+    $ERL -sname $ERLANG_NODE \
+        -noshell \
+        -mnesia dir "\"$MNESIA_DIR\"" \
+        -eval "mnesia:delete_schema([node()]),mnesia:create_schema([node()])" \
+        -s init stop $@
+}
+
+live()
+{
+    if [ ! -d $MNESIA_DIR ]; then
+        initdb
+    fi
+
+    $ERL $NAME $ERLANG_NODE $START_OPTS $@
+}
+
+ctl()
+{
+    $ERL $NAME vertebra_ctl -noinput $OPTS -s vertebra_ctl \
+        -extra $ERLANG_NODE $@
+    result=$?
+    case $result in
+        0) :;;
+        1) :;;
+        *) usage;;
+    esac
+    exit $result
+}
+
+case $CMD in
+    start) start $ARGS;;
+    initdb) initdb $ARGS;;
+    live) live $ARGS;;
+    '') usage;;
+    *) ctl $CMD $ARGS;;
+esac
