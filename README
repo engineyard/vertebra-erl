@@ -1,3 +1,10 @@
+== Deprecated
+
+This library has been deprecated. A new version of the Erlang library is in the
+works for the 0.5 or 0.6 release. For those of you using this code, it's going
+to remain in the 0.4 line of releases, but we don't recommend that people start
+using it at this point.
+
 == Quickstart
 
 To build all of the erlang components just type:
