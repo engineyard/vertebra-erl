@@ -9,7 +9,6 @@ install-sh
 missing
 *.beam
 *.dump
-*.app
 *.plt
 bin/vertebractl
 conf/vertebractl.conf
